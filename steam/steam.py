@@ -15,7 +15,7 @@ with open(config_file, mode="r") as f:
 
 playing_state = {}
 async def format_id(id:str)->str:
-    if id.startswith('76561198') and len(id)==17:
+    if id.startswith('76561') and len(id)==17:
         return id
     else:
         resp= await aiorequests.get(f'https://steamcommunity.com/id/{id}?xml=1')
