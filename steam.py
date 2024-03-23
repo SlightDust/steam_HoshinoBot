@@ -2,8 +2,16 @@ import json
 import os
 from lxml import etree
 from asyncio import sleep
+try:
+    from urllib2 import urlopen
+except ImportError:
+    from urllib.request import urlopen
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+from nonebot import MessageSegment
 
 from hoshino import service, aiorequests
+from hoshino.util import pic2b64
 
 sv = service.Service("steam", enable_on_default=True)
 
@@ -21,6 +29,36 @@ async def format_id(id:str)->str:
         resp= await aiorequests.get(f'https://steamcommunity.com/id/{id}?xml=1')
         xml=etree.XML(await resp.content)
         return xml.xpath('/profile/steamID64')[0].text
+
+def make_img(data):
+    top = data["personaname"]
+    mid = "is now playing"
+    bottom = data["gameextrainfo"]
+    url = data["avatarmedium"]
+
+    text_size = 16
+    spacing = 20
+    font_name = os.path.join(os.path.dirname(__file__), 'simhei.ttf')
+    font_ascii = os.path.join(os.path.dirname(__file__), 'tahoma.ttf')
+    font = ImageFont.truetype(font_ascii, size=text_size)
+
+    image_bytes = urlopen(url).read()
+    data_stream = BytesIO(image_bytes)
+    avatar = Image.open(data_stream)
+    w = int(280*1.6)
+    h = 86
+    img = Image.new("RGB", (w, h), (33, 33, 33))
+    draw = ImageDraw.Draw(img)
+    avatar = avatar.resize((60, 60))
+    green_line = Image.new("RGB", (3, 60), (89, 191, 64))
+    img.paste(avatar, (13, 10))
+    img.paste(green_line, (74, 10))
+    draw.text((90, 10), top, fill=(193, 217, 167), font=ImageFont.truetype(font_name, size=text_size))
+    draw.text((90, 10+spacing-2), mid, fill=(115, 115, 115), font=font)
+    draw.text((90, 10+spacing*2), bottom, fill=(135, 181, 82), font=font)
+    
+    # img.show()
+    return img
 
 @sv.on_prefix("添加steam订阅")
 async def steam(bot, ev):
@@ -102,7 +140,8 @@ async def update_game_status():
     for friend in rsp["response"]["players"]:
         playing_state[friend["steamid"]] = {
             "personaname": friend["personaname"],
-            "gameextrainfo": friend["gameextrainfo"] if "gameextrainfo" in friend else ""
+            "gameextrainfo": friend["gameextrainfo"] if "gameextrainfo" in friend else "",
+            "avatarmedium": friend["avatarmedium"],
         }
 
 
@@ -138,8 +177,9 @@ async def check_steam_status():
                 await broadcast(glist,
                                 "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["gameextrainfo"]))
             else:
-                await broadcast(glist,
-                                "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
+                # await broadcast(glist,
+                #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
+                await broadcast(glist,MessageSegment.image(pic2b64(make_img(playing_state[key]))))
 
 
 async def broadcast(group_list: set, msg):
