@@ -87,7 +87,7 @@ async def steam(bot, ev):
         await bot.send(ev, "取消订阅失败")
 
 
-@sv.on_prefix("steam订阅列表")
+@sv.on_fullmatch(("steam订阅列表","谁在玩游戏"))
 async def steam(bot, ev):
     group_id = ev["group_id"]
     msg = '======steam======\n'
