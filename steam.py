@@ -38,9 +38,10 @@ def make_img(data):
 
     text_size = 16
     spacing = 20
-    font_name = os.path.join(os.path.dirname(__file__), 'simhei.ttf')
-    font_ascii = os.path.join(os.path.dirname(__file__), 'tahoma.ttf')
-    font = ImageFont.truetype(font_ascii, size=text_size)
+    font_multilang_path = os.path.join(os.path.dirname(__file__), 'simhei.ttf')
+    font_ascii_path = os.path.join(os.path.dirname(__file__), 'tahoma.ttf')
+    font_ascii = ImageFont.truetype(font_ascii_path, size=text_size)
+    font_multilang = ImageFont.truetype(font_multilang_path, size=text_size)
 
     image_bytes = urlopen(url).read()
     data_stream = BytesIO(image_bytes)
@@ -53,9 +54,20 @@ def make_img(data):
     green_line = Image.new("RGB", (3, 60), (89, 191, 64))
     img.paste(avatar, (13, 10))
     img.paste(green_line, (74, 10))
-    draw.text((90, 10), top, fill=(193, 217, 167), font=ImageFont.truetype(font_name, size=text_size))
-    draw.text((90, 10+spacing-2), mid, fill=(115, 115, 115), font=font)
-    draw.text((90, 10+spacing*2), bottom, fill=(135, 181, 82), font=font)
+    draw.text((90, 10), top, fill=(193, 217, 167), font=font_multilang)
+    draw.text((90, 10+spacing-2), mid, fill=(115, 115, 115), font=font_ascii)
+    # draw.text((90, 10+spacing*2), bottom, fill=(135, 181, 82), font=font_ascii)
+
+    x_position = 90  # 起始x位置
+    for char in bottom:  
+        current_font = font_ascii
+        # 如果当前字体默认字体并且字符不在默认字体中，则切换到回退字体  
+        if current_font == font_ascii and draw.textlength(char, font=font_ascii)==text_size:
+            current_font = font_multilang
+        # 绘制字符
+        draw.text((x_position, 10+spacing*2), text=char, font=current_font, fill=(135, 181, 82))
+        # 更新x位置以便下一个字符能紧挨着前一个字符
+        x_position += draw.textlength(char, font=current_font)
     
     # img.show()
     return img
