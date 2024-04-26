@@ -24,10 +24,11 @@ help_ ="""
 
 sv = service.Service("steam", enable_on_default=True, help_=help_)
 
-proxies = {
-    'http': None,
-    'https': None,
-}
+proxies = None
+# proxies = {
+#     'http': "",
+#     'https': "",
+# }
 
 current_folder = os.path.dirname(__file__)
 config_file = os.path.join(current_folder, 'steam.json')
