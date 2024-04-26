@@ -2,6 +2,7 @@ import json
 import os
 from lxml import etree
 from asyncio import sleep
+
 try:
     from urllib2 import urlopen
 except ImportError:
@@ -13,7 +14,20 @@ from nonebot import MessageSegment
 from hoshino import service, aiorequests
 from hoshino.util import pic2b64
 
-sv = service.Service("steam", enable_on_default=True)
+help_ ="""
+[添加steam订阅 steamid或自定义url] 订阅一个账号的游戏状态
+[取消steam订阅 steamid或自定义url] 取消订阅
+[steam订阅列表] 查询本群所有订阅账号的游戏状态
+[谁在玩游戏] 看看谁在玩游戏
+[查询steam账号] 查询指定steam账号的游戏状态
+"""
+
+sv = service.Service("steam", enable_on_default=True, help_=help_)
+
+proxies = {
+    'http': None,
+    'https': None,
+}
 
 current_folder = os.path.dirname(__file__)
 config_file = os.path.join(current_folder, 'steam.json')
@@ -22,13 +36,15 @@ with open(config_file, mode="r") as f:
     cfg = json.loads(f)
 
 playing_state = {}
-async def format_id(id:str)->str:
-    if id.startswith('76561') and len(id)==17:
+
+async def format_id(id: str) -> str:
+    if id.startswith('76561') and len(id) == 17:
         return id
     else:
-        resp= await aiorequests.get(f'https://steamcommunity.com/id/{id}?xml=1')
-        xml=etree.XML(await resp.content)
+        resp = await aiorequests.get(f'https://steamcommunity.com/id/{id}?xml=1', proxies=proxies)
+        xml = etree.XML(await resp.content)
         return xml.xpath('/profile/steamID64')[0].text
+
 
 def make_img(data):
     top = data["personaname"]
@@ -46,7 +62,7 @@ def make_img(data):
     image_bytes = urlopen(url).read()
     data_stream = BytesIO(image_bytes)
     avatar = Image.open(data_stream)
-    w = int(280*1.6)
+    w = int(280 * 1.6)
     h = 86
     img = Image.new("RGB", (w, h), (33, 33, 33))
     draw = ImageDraw.Draw(img)
@@ -55,22 +71,23 @@ def make_img(data):
     img.paste(avatar, (13, 10))
     img.paste(green_line, (74, 10))
     draw.text((90, 10), top, fill=(193, 217, 167), font=font_multilang)
-    draw.text((90, 10+spacing-2), mid, fill=(115, 115, 115), font=font_ascii)
+    draw.text((90, 10 + spacing - 2), mid, fill=(115, 115, 115), font=font_ascii)
     # draw.text((90, 10+spacing*2), bottom, fill=(135, 181, 82), font=font_ascii)
 
     x_position = 90  # 起始x位置
-    for char in bottom:  
+    for char in bottom:
         current_font = font_ascii
-        # 如果当前字体默认字体并且字符不在默认字体中，则切换到回退字体  
-        if current_font == font_ascii and draw.textlength(char, font=font_ascii)==text_size:
+        # 如果当前字体默认字体并且字符不在默认字体中，则切换到回退字体
+        if current_font == font_ascii and draw.textlength(char, font=font_ascii) == text_size:
             current_font = font_multilang
         # 绘制字符
-        draw.text((x_position, 10+spacing*2), text=char, font=current_font, fill=(135, 181, 82))
+        draw.text((x_position, 10 + spacing * 2), text=char, font=current_font, fill=(135, 181, 82))
         # 更新x位置以便下一个字符能紧挨着前一个字符
         x_position += draw.textlength(char, font=current_font)
-    
+
     # img.show()
     return img
+
 
 @sv.on_prefix("添加steam订阅")
 async def steam(bot, ev):
@@ -99,7 +116,7 @@ async def steam(bot, ev):
         await bot.send(ev, "取消订阅失败")
 
 
-@sv.on_fullmatch(("steam订阅列表","谁在玩游戏"))
+@sv.on_fullmatch(("steam订阅列表", "谁在玩游戏"))
 async def steam(bot, ev):
     group_id = ev["group_id"]
     msg = '======steam======\n'
@@ -126,13 +143,13 @@ async def steam(bot, ev):
 
 
 async def get_account_status(id) -> dict:
-    id=await format_id(id)
+    id = await format_id(id)
     params = {
         "key": cfg["key"],
         "format": "json",
         "steamids": id
     }
-    resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params)
+    resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params, proxies=proxies)
     rsp = await resp.json()
     friend = rsp["response"]["players"][0]
     return {
@@ -147,7 +164,7 @@ async def update_game_status():
         "format": "json",
         "steamids": ",".join(cfg["subscribes"].keys())
     }
-    resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params)
+    resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params, proxies=proxies)
     rsp = await resp.json()
     for friend in rsp["response"]["players"]:
         playing_state[friend["steamid"]] = {
@@ -157,9 +174,8 @@ async def update_game_status():
         }
 
 
-
 async def update_steam_ids(steam_id, group):
-    steam_id=await format_id(steam_id)
+    steam_id = await format_id(steam_id)
     if steam_id not in cfg["subscribes"]:
         cfg["subscribes"][str(steam_id)] = []
     if group not in cfg["subscribes"][str(steam_id)]:
@@ -170,7 +186,7 @@ async def update_steam_ids(steam_id, group):
 
 
 async def del_steam_ids(steam_id, group):
-    steam_id=await format_id(steam_id)
+    steam_id = await format_id(steam_id)
     if group in cfg["subscribes"][str(steam_id)]:
         cfg["subscribes"][str(steam_id)].remove(group)
     with open(config_file, mode="w") as fil:
@@ -183,15 +199,19 @@ async def check_steam_status():
     old_state = playing_state.copy()
     await update_game_status()
     for key, val in playing_state.items():
-        if val["gameextrainfo"] != old_state[key]["gameextrainfo"]:
-            glist=set(cfg["subscribes"][key])&set((await sv.get_enable_groups()).keys())
-            if val["gameextrainfo"] == "":
-                await broadcast(glist,
-                                "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["gameextrainfo"]))
-            else:
-                # await broadcast(glist,
-                #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
-                await broadcast(glist,MessageSegment.image(pic2b64(make_img(playing_state[key]))))
+        try:
+            if val["gameextrainfo"] != old_state[key]["gameextrainfo"]:
+                glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
+                if val["gameextrainfo"] == "":
+                    await broadcast(glist,
+                                    "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["gameextrainfo"]))
+                else:
+                    # await broadcast(glist,
+                    #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
+                    await broadcast(glist, MessageSegment.image(pic2b64(make_img(playing_state[key]))))
+        except Exception as e:
+            sv.logger.warning(f"check_steam_status error: {e}, key: {key}, val: {val}, skipped.")
+
 
 
 async def broadcast(group_list: set, msg):
