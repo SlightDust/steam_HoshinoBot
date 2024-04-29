@@ -169,10 +169,13 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
             # 在线状态的线条
             background.paste(gray_line, (x + 48 + 1, y))
             # 显示离线时间
-            last_logoff = calculate_last_login_time(status["lastlogoff"])
-            draw.text((x + padding_left + 48 + 5, y + padding_top + 23), f"上次在线{last_logoff}前",
-                      fill=gray,
-                      font=font_multilang_small)
+            if status["lastlogoff"]:  # 是apikey所属账号的好友，可以获取上次在线时间
+                last_logoff = f'上次在线{calculate_last_login_time(status["lastlogoff"])}前'
+            else:  # 非好友
+                last_logoff = "离线"
+            draw.text((x + padding_left + 48 + 5, y + padding_top + 23), last_logoff,
+                        fill=gray,
+                        font=font_multilang_small)
         y += 48 + spacing
     # 给最终结果创建一个环绕四周的边框, 颜色和背景色一致
     result_with_border = Image.new("RGB", (w + border_size * 2, h + border_size * 2), (33, 33, 33))
@@ -264,13 +267,18 @@ async def update_game_status():
     for player in rsp["response"]["players"]:
         playing_state[player["steamid"]] = {
             "personaname": player["personaname"],
-            "lastlogoff": player["lastlogoff"],
+            # "lastlogoff": player["lastlogoff"],
             # steam personastate detail:  0 - Offline, 1 - Online, 2 - Busy, 3 - Away,
             #  4 - Snooze, 5 - looking to trade, 6 - looking to play.
             "personastate": player["personastate"],
             "gameextrainfo": player["gameextrainfo"] if "gameextrainfo" in player else "",
             "avatarmedium": player["avatarmedium"],
         }
+        # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
+        if "lastlogoff" in player:
+            playing_state[player["steamid"]]["lastlogoff"] = player["lastlogoff"]
+        else:
+            playing_state[player["steamid"]]["lastlogoff"] = None
 
 
 async def update_steam_ids(steam_id, group):
