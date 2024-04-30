@@ -30,12 +30,18 @@ proxies = None
 
 current_folder = os.path.dirname(__file__)
 config_file = os.path.join(current_folder, 'steam.json')
+
+# 初次启动时创建缺省配置文件
+if not os.path.exists(config_file):
+    with open(config_file, mode="w") as f:
+        f.write(json.dumps({"key": "your-steam-key-here","localize":True, "subscribes": {}}, indent=4))
+
+# 加载配置文件
 with open(config_file, mode="r") as f:
     f = f.read()
     cfg = json.loads(f)
 
 playing_state = {}
-
 
 async def format_id(id: str) -> str:
     if id.startswith('76561') and len(id) == 17:
