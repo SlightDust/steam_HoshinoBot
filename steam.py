@@ -59,11 +59,18 @@ async def fetch_avatar(url):
     return Image.open(data_stream)
 
 
-async def make_img(data):
-    top = data["personaname"]
+async def make_img(key, data):
+    player_name = data["personaname"]  # 昵称
     mid = "is now playing"
-    bottom = data["gameextrainfo"]
-    url = data["avatarmedium"]
+    game_name = data["gameextrainfo"]
+    avatar_url = data["avatarmedium"]
+    print(data)
+    if cfg["localize"]:
+        game_name = await get_chinese_game_name(data["gameid"])
+        if not game_name:
+            game_name = data["gameextrainfo"]
+        else:
+            playing_state[key]["gameextrainfo"] = game_name  # 给游戏状态直接覆盖，停止游玩时直接发中文名·
 
     text_size = 16
     spacing = 20
@@ -71,7 +78,7 @@ async def make_img(data):
     font_ascii_path = os.path.join(os.path.dirname(__file__), 'tahoma.ttf')
     font_ascii = ImageFont.truetype(font_ascii_path, size=text_size)
     font_multilang = ImageFont.truetype(font_multilang_path, size=text_size)
-    avatar = await fetch_avatar(url)
+    avatar = await fetch_avatar(avatar_url)
     w = int(280 * 1.6)
     h = 86
     img = Image.new("RGB", (w, h), (33, 33, 33))
@@ -80,12 +87,12 @@ async def make_img(data):
     green_line = Image.new("RGB", (3, 60), (89, 191, 64))
     img.paste(avatar, (13, 10))
     img.paste(green_line, (74, 10))
-    draw.text((90, 10), top, fill=(193, 217, 167), font=font_multilang)
+    draw.text((90, 10), player_name, fill=(193, 217, 167), font=font_multilang)
     draw.text((90, 10 + spacing - 2), mid, fill=(115, 115, 115), font=font_ascii)
-    # draw.text((90, 10+spacing*2), bottom, fill=(135, 181, 82), font=font_ascii)
+    # draw.text((90, 10+spacing*2), game_name, fill=(135, 181, 82), font=font_ascii)
 
     x_position = 90  # 起始x位置
-    for char in bottom:
+    for char in game_name:
         current_font = font_ascii
         # 如果当前字体默认字体并且字符不在默认字体中，则切换到回退字体
         if current_font == font_ascii and draw.textlength(char, font=font_ascii) == text_size:
@@ -188,6 +195,26 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
     result_with_border.paste(background, (border_size, border_size))
     return result_with_border
 
+async def get_chinese_game_name(steam_appid: str) -> str:
+    """
+    根据steam游戏id获取中文游戏名，通过小黑盒
+    :param steam_appid: steam游戏id
+    :return: 中文游戏名
+    """
+    """
+    todo: 本地缓存
+    """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
+    }
+    try:  # 不知道会有什么异常，总之用try包一下
+        url = f'https://xiaoheihe.cn/games/detail/{steam_appid}'  # 直接从title里找
+        html = await (await aiorequests.get(url, headers=headers, timeout = 5)).content
+        tree = etree.HTML(html)
+        title = tree.xpath('//title/text()')[0]
+        return title.strip()
+    except:
+        return None
 
 @sv.on_prefix("添加steam订阅")
 async def steam(bot, ev):
@@ -273,11 +300,13 @@ async def update_game_status():
     for player in rsp["response"]["players"]:
         playing_state[player["steamid"]] = {
             "personaname": player["personaname"],
+            # "lastlogoff": player["lastlogoff"],
             # steam personastate detail:  0 - Offline, 1 - Online, 2 - Busy, 3 - Away,
             #  4 - Snooze, 5 - looking to trade, 6 - looking to play.
             "personastate": player["personastate"],
             "gameextrainfo": player["gameextrainfo"] if "gameextrainfo" in player else "",
             "avatarmedium": player["avatarmedium"],
+            "gameid": player["gameid"] if "gameid" in player else "",
             "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None   # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
         }
 
