@@ -273,18 +273,13 @@ async def update_game_status():
     for player in rsp["response"]["players"]:
         playing_state[player["steamid"]] = {
             "personaname": player["personaname"],
-            # "lastlogoff": player["lastlogoff"],
             # steam personastate detail:  0 - Offline, 1 - Online, 2 - Busy, 3 - Away,
             #  4 - Snooze, 5 - looking to trade, 6 - looking to play.
             "personastate": player["personastate"],
             "gameextrainfo": player["gameextrainfo"] if "gameextrainfo" in player else "",
             "avatarmedium": player["avatarmedium"],
+            "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None   # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
         }
-        # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
-        if "lastlogoff" in player:
-            playing_state[player["steamid"]]["lastlogoff"] = player["lastlogoff"]
-        else:
-            playing_state[player["steamid"]]["lastlogoff"] = None
 
 
 async def update_steam_ids(steam_id, group):
