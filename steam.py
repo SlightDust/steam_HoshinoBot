@@ -312,18 +312,18 @@ async def check_steam_status():
     old_state = playing_state.copy()
     await update_game_status()
     for key, val in playing_state.items():
-        try:
-            if val["gameextrainfo"] != old_state[key]["gameextrainfo"]:
-                glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
-                if val["gameextrainfo"] == "":
-                    await broadcast(glist,
-                                    "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["gameextrainfo"]))
-                else:
-                    # await broadcast(glist,
-                    #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
-                    await broadcast(glist, MessageSegment.image(pic2b64(await make_img(playing_state[key]))))
-        except Exception as e:
-            sv.logger.warning(f"check_steam_status error: {e}, key: {key}, val: {val}, skipped.")
+        if key not in old_state:
+            sv.logger.info(f"缓存为空，初始化 {key} 的游戏状态。")
+            continue
+        if val["gameextrainfo"] != old_state[key]["gameextrainfo"]:
+            glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
+            if val["gameextrainfo"] == "":
+                await broadcast(glist,
+                                "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["gameextrainfo"]))
+            else:
+                # await broadcast(glist,
+                #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
+                await broadcast(glist, MessageSegment.image(pic2b64(await make_img(key, playing_state[key]))))
 
 
 async def broadcast(group_list: set, msg):
