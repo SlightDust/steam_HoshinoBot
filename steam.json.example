@@ -1,6 +1,6 @@
 {
     "key": "your-steam-key-here",
-    "localize": true,
+    "language": "schinese",
     "subscribes": {
     }
 }

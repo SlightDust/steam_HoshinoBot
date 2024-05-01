@@ -13,7 +13,7 @@ froked from [pcrbot/steam](https://github.com/SlightDust/steam.git)
 ### 使用方法
 自备`simhei.ttf`和`tahoma.ttf`两个字体文件，放在插件目录即可。  
 前者在`C:\Windows\Fonts\`，后者可以从L4D2的目录里拿`Left 4 Dead 2\platform\vgui\fonts\`。  
-初次启动前，复制steam.json.example为steam.json，填入api key。或在初次启动后，在生成的steam.json中填入api key。  
+初次启动前，复制steam.json.example为steam.json，填入api key。或在初次启动后，在生成的steam.json中填入api key后重启bot。  
 
 |指令|说明|指令示例|
 |----|----|----|
