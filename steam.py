@@ -292,6 +292,12 @@ async def steam(bot, ev):
     else:
         await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["gameextrainfo"]))
 
+@sv.on_fullmatch("重载steam订阅配置", only_to_me=True)
+async def reload_config(bot, ev):
+    with open(config_file, mode="r") as f:
+        f = f.read()
+        cfg = json.loads(f)
+    await bot.send(ev, "重载成功！")
 
 async def get_account_status(id) -> dict:
     id = await format_id(id)
