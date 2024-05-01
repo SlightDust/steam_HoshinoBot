@@ -134,3 +134,4 @@ test*.py
 simhei.ttf
 tahoma.ttf
 steam.json
+localized_game_name.json

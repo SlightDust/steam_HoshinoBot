@@ -34,12 +34,19 @@ config_file = os.path.join(current_folder, 'steam.json')
 # 初次启动时创建缺省配置文件
 if not os.path.exists(config_file):
     with open(config_file, mode="w") as f:
-        f.write(json.dumps({"key": "your-steam-key-here","localize":True, "subscribes": {}}, indent=4))
+        f.write(json.dumps({"key": "your-steam-key-here","language":"schinese", "subscribes": {}}, indent=4))
 
 # 加载配置文件
 with open(config_file, mode="r") as f:
     f = f.read()
     cfg = json.loads(f)
+    # 兼容旧版本配置文件
+    if "language" not in cfg:
+        cfg["language"] = "schinese"
+    # 保存更新后的配置文件
+    with open(config_file, mode="w") as f:
+        f.write(json.dumps(cfg, indent=4))
+    
 
 playing_state = {}
 
@@ -59,18 +66,11 @@ async def fetch_avatar(url):
     return Image.open(data_stream)
 
 
-async def make_img(key, data):
+async def make_img(data):
     player_name = data["personaname"]  # 昵称
     mid = "is now playing"
-    game_name = data["gameextrainfo"]
+    game_name = data["localized_game_name"] if data["localized_game_name"] else data["gameextrainfo"]
     avatar_url = data["avatarmedium"]
-    print(data)
-    if cfg["localize"]:
-        game_name = await get_chinese_game_name(data["gameid"])
-        if not game_name:
-            game_name = data["gameextrainfo"]
-        else:
-            playing_state[key]["gameextrainfo"] = game_name  # 给游戏状态直接覆盖，停止游玩时直接发中文名·
 
     text_size = 16
     spacing = 20
@@ -195,24 +195,46 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
     result_with_border.paste(background, (border_size, border_size))
     return result_with_border
 
-async def get_chinese_game_name(steam_appid: str) -> str:
+async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     """
-    根据steam游戏id获取中文游戏名，通过小黑盒
+    根据steam游戏id获取指定语言的游戏名，通过steamapi
     :param steam_appid: steam游戏id
-    :return: 中文游戏名
-    """
-    """
-    todo: 本地缓存
+    :param game_name: 英文游戏名
+    :return: 指定语言的游戏名
     """
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
     }
-    try:  # 不知道会有什么异常，总之用try包一下
-        url = f'https://xiaoheihe.cn/games/detail/{steam_appid}'  # 直接从title里找
-        html = await (await aiorequests.get(url, headers=headers, timeout = 5)).content
-        tree = etree.HTML(html)
-        title = tree.xpath('//title/text()')[0]
-        return title.strip()
+    # 首次调用，检查本地缓存文件
+    if not os.path.exists(os.path.join(current_folder, 'localized_game_name.json')):
+        with open(os.path.join(current_folder, 'localized_game_name.json'), mode="w") as f:
+            f.write(json.dumps({"000000":{"language_name":"localized_game_name"}}, indent=4, ensure_ascii=False))
+    # 先尝试从本地缓存中找指定语言的游戏名：
+        with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
+            localized_game_name_dict = json.loads(f.read())
+            if str(steam_appid) in localized_game_name_dict:
+                return localized_game_name_dict[str(steam_appid)][cfg["language"]]
+    # 本地缓存里没有
+    # 通过steamapi查询
+    url = f'https://store.steampowered.com/api/appdetails?appids={steam_appid}&l={cfg["language"]}'
+    try:
+        resp = await aiorequests.get(url, headers=headers, timeout=5)
+        data = await resp.json()
+        # print(data)
+        if data[str(steam_appid)]["success"]:
+            localized_game_name = data[str(steam_appid)]["data"]["name"]
+            # 只有成功才写入本地缓存
+            with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
+                localized_game_name_dict = json.loads(f.read())
+            if steam_appid in localized_game_name_dict:  # appid已存在，更新对应语言的翻译
+                localized_game_name_dict[str(steam_appid)][cfg["language"]] = localized_game_name
+            else:  # appid不存在，新增
+                localized_game_name_dict[str(steam_appid)] = {cfg["language"]: localized_game_name}
+            with open(os.path.join(current_folder, 'localized_game_name.json'), mode="w") as f:
+                f.write(json.dumps(localized_game_name_dict, indent=4, ensure_ascii=False))
+            return localized_game_name
+        else:
+            return None
     except:
         return None
 
@@ -300,14 +322,14 @@ async def update_game_status():
     for player in rsp["response"]["players"]:
         playing_state[player["steamid"]] = {
             "personaname": player["personaname"],
-            # "lastlogoff": player["lastlogoff"],
             # steam personastate detail:  0 - Offline, 1 - Online, 2 - Busy, 3 - Away,
             #  4 - Snooze, 5 - looking to trade, 6 - looking to play.
             "personastate": player["personastate"],
             "gameextrainfo": player["gameextrainfo"] if "gameextrainfo" in player else "",
             "avatarmedium": player["avatarmedium"],
             "gameid": player["gameid"] if "gameid" in player else "",
-            "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None   # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
+            "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None,   # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
+            "localized_game_name": (await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""  # 本体游戏名
         }
 
 
@@ -343,11 +365,11 @@ async def check_steam_status():
             glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
             if val["gameextrainfo"] == "":
                 await broadcast(glist,
-                                "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["gameextrainfo"]))
+                                "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["localized_game_name"] if old_state[key]["localized_game_name"] else old_state[key]["gameextrainfo"]))
             else:
                 # await broadcast(glist,
                 #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
-                await broadcast(glist, MessageSegment.image(pic2b64(await make_img(key, playing_state[key]))))
+                await broadcast(glist, MessageSegment.image(pic2b64(await make_img(playing_state[key]))))
 
 
 async def broadcast(group_list: set, msg):
