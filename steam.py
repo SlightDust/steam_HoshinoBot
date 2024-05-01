@@ -69,7 +69,7 @@ async def fetch_avatar(url):
 async def make_img(data):
     player_name = data["personaname"]  # 昵称
     mid = "is now playing"
-    game_name = data["localized_game_name"] if data["localized_game_name"] else data["gameextrainfo"]
+    game_name = data["localized_game_name"] if data["localized_game_name"] != "" else data["gameextrainfo"]
     avatar_url = data["avatarmedium"]
 
     text_size = 16
@@ -147,7 +147,7 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
     draw = ImageDraw.Draw(background)
     for steam_id, status in group_playing_state.items():
         player_name = status["personaname"]
-        game_info = status["localized_game_name"] if status["localized_game_name"] else status["gameextrainfo"]
+        game_info = status["localized_game_name"] if status["localized_game_name"] != "" else status["gameextrainfo"]
         avatar_url = status["avatarmedium"]
 
         is_online = status["personastate"] != 0
@@ -212,7 +212,7 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     # 先尝试从本地缓存中找指定语言的游戏名：
         with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
             localized_game_name_dict = json.loads(f.read())
-            if str(steam_appid) in localized_game_name_dict:
+            if str(steam_appid) in localized_game_name_dict and cfg["language"] in localized_game_name_dict[str(steam_appid)]:
                 return localized_game_name_dict[str(steam_appid)][cfg["language"]]
     # 本地缓存里没有
     # 通过steamapi查询
@@ -234,9 +234,9 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
                 f.write(json.dumps(localized_game_name_dict, indent=4, ensure_ascii=False))
             return localized_game_name
         else:
-            return None
+            return ""
     except:
-        return None
+        return ""
 
 @sv.on_prefix("添加steam订阅")
 async def steam(bot, ev):
@@ -249,7 +249,7 @@ async def steam(bot, ev):
         elif rsp["gameextrainfo"] == "":
             await bot.send(ev, f"%s 没在玩游戏！" % rsp["personaname"])
         else:
-            await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] else rsp["gameextrainfo"]))
+            await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
         await bot.send(ev, "订阅成功")
     except:
         await bot.send(ev, "订阅失败")
@@ -290,7 +290,7 @@ async def steam(bot, ev):
     elif rsp["gameextrainfo"] == "":
         await bot.send(ev, f"%s 没在玩游戏！" % rsp["personaname"])
     else:
-        await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] else rsp["gameextrainfo"]))
+        await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
 
 @sv.on_fullmatch("重载steam订阅配置", only_to_me=True)
 async def reload_config(bot, ev):
@@ -373,7 +373,7 @@ async def check_steam_status():
             glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
             if val["gameextrainfo"] == "":
                 await broadcast(glist,
-                                "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["localized_game_name"] if old_state[key]["localized_game_name"] else old_state[key]["gameextrainfo"]))
+                                "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["localized_game_name"] if old_state[key]["localized_game_name"] != "" else old_state[key]["gameextrainfo"]))
             else:
                 # await broadcast(glist,
                 #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
