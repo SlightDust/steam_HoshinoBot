@@ -218,7 +218,7 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     # 通过steamapi查询
     url = f'https://store.steampowered.com/api/appdetails?appids={steam_appid}&l={cfg["language"]}'
     try:
-        resp = await aiorequests.get(url, headers=headers, timeout=5)
+        resp = await aiorequests.get(url, headers=headers, timeout=5, proxies=proxies)
         data = await resp.json()
         # print(data)
         if data[str(steam_appid)]["success"]:
