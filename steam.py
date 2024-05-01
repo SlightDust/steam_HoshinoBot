@@ -74,10 +74,8 @@ async def make_img(data):
 
     text_size = 16
     spacing = 20
-    font_multilang_path = os.path.join(os.path.dirname(__file__), 'simhei.ttf')
-    font_ascii_path = os.path.join(os.path.dirname(__file__), 'tahoma.ttf')
-    font_ascii = ImageFont.truetype(font_ascii_path, size=text_size)
-    font_multilang = ImageFont.truetype(font_multilang_path, size=text_size)
+    font_path = os.path.join(os.path.dirname(__file__), 'MiSans-Regular.ttf')
+    font = ImageFont.truetype(font_path, size=text_size)
     avatar = await fetch_avatar(avatar_url)
     w = int(280 * 1.6)
     h = 86
@@ -87,20 +85,9 @@ async def make_img(data):
     green_line = Image.new("RGB", (3, 60), (89, 191, 64))
     img.paste(avatar, (13, 10))
     img.paste(green_line, (74, 10))
-    draw.text((90, 10), player_name, fill=(193, 217, 167), font=font_multilang)
-    draw.text((90, 10 + spacing - 2), mid, fill=(115, 115, 115), font=font_ascii)
-    # draw.text((90, 10+spacing*2), game_name, fill=(135, 181, 82), font=font_ascii)
-
-    x_position = 90  # 起始x位置
-    for char in game_name:
-        current_font = font_ascii
-        # 如果当前字体默认字体并且字符不在默认字体中，则切换到回退字体
-        if current_font == font_ascii and draw.textlength(char, font=font_ascii) == text_size:
-            current_font = font_multilang
-        # 绘制字符
-        draw.text((x_position, 10 + spacing * 2), text=char, font=current_font, fill=(135, 181, 82))
-        # 更新x位置以便下一个字符能紧挨着前一个字符
-        x_position += draw.textlength(char, font=current_font)
+    draw.text((90, 10), player_name, fill=(193, 217, 167), font=font)
+    draw.text((90, 10 + spacing - 2), mid, fill=(115, 115, 115), font=font)
+    draw.text((90, 10+spacing*2), game_name, fill=(135, 181, 82), font=font)
 
     # img.show()
     return img
@@ -130,11 +117,9 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
     green = (144, 186, 60)
     blue = (87, 203, 222)
     gray = (137, 137, 137)
-    font_multilang_path = os.path.join(os.path.dirname(__file__), 'simhei.ttf')
-    font_ascii_path = os.path.join(os.path.dirname(__file__), 'tahoma.ttf')
-    font_ascii = ImageFont.truetype(font_ascii_path, size=text_size_small)
-    font_multilang = ImageFont.truetype(font_multilang_path, size=text_size_normal)
-    font_multilang_small = ImageFont.truetype(font_multilang_path, size=text_size_small)
+    font_path = os.path.join(os.path.dirname(__file__), 'MiSans-Regular.ttf')
+    font = ImageFont.truetype(font_path, size=text_size_normal)
+    font_small = ImageFont.truetype(font_path, size=text_size_small)
     green_line = Image.new("RGB", (3, 48), green)
     blue_line = Image.new("RGB", (3, 48), blue)
     gray_line = Image.new("RGB", (3, 48), gray)
@@ -161,24 +146,24 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
         if is_playing:
             # 用户名
             draw.text((x + padding_left + 48 + 5, y + padding_top), player_name, fill=green,
-                      font=font_multilang)
+                      font=font)
             background.paste(green_line, (x + 48 + 1, y))
             draw.text((x + padding_left + 48 + 5, y + padding_top + 23), game_info,
                       fill=green,
-                      font=font_ascii)
+                      font=font_small)
         elif is_online:
             # 用户名
             draw.text((x + padding_left + 48 + 5, y + padding_top), player_name, fill=blue,
-                      font=font_multilang)
+                      font=font)
             # 在线状态的线条
             background.paste(blue_line, (x + 48 + 1, y))
             draw.text((x + padding_left + 48 + 5, y + padding_top + 23), "在线",
                       fill=blue,
-                      font=font_multilang_small)
+                      font=font_small)
         else:  # offline
             # 用户名
             draw.text((x + padding_left + 48 + 5, y + padding_top), player_name, fill=gray,
-                      font=font_multilang)
+                      font=font)
             # 在线状态的线条
             background.paste(gray_line, (x + 48 + 1, y))
             # 显示离线时间
@@ -188,7 +173,7 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
                 last_logoff = "离线"
             draw.text((x + padding_left + 48 + 5, y + padding_top + 23), last_logoff,
                         fill=gray,
-                        font=font_multilang_small)
+                        font=font_small)
         y += 48 + spacing
     # 给最终结果创建一个环绕四周的边框, 颜色和背景色一致
     result_with_border = Image.new("RGB", (w + border_size * 2, h + border_size * 2), (33, 33, 33))
