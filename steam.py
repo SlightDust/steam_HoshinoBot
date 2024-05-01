@@ -147,7 +147,7 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
     draw = ImageDraw.Draw(background)
     for steam_id, status in group_playing_state.items():
         player_name = status["personaname"]
-        game_info = status["gameextrainfo"]
+        game_info = status["localized_game_name"] if status["localized_game_name"] else status["gameextrainfo"]
         avatar_url = status["avatarmedium"]
 
         is_online = status["personastate"] != 0
@@ -249,7 +249,7 @@ async def steam(bot, ev):
         elif rsp["gameextrainfo"] == "":
             await bot.send(ev, f"%s 没在玩游戏！" % rsp["personaname"])
         else:
-            await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["gameextrainfo"]))
+            await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] else rsp["gameextrainfo"]))
         await bot.send(ev, "订阅成功")
     except:
         await bot.send(ev, "订阅失败")
@@ -290,10 +290,11 @@ async def steam(bot, ev):
     elif rsp["gameextrainfo"] == "":
         await bot.send(ev, f"%s 没在玩游戏！" % rsp["personaname"])
     else:
-        await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["gameextrainfo"]))
+        await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] else rsp["gameextrainfo"]))
 
 @sv.on_fullmatch("重载steam订阅配置", only_to_me=True)
 async def reload_config(bot, ev):
+    global cfg
     with open(config_file, mode="r") as f:
         f = f.read()
         cfg = json.loads(f)
@@ -312,7 +313,8 @@ async def get_account_status(id) -> dict:
     friend = rsp["response"]["players"][0]
     return {
         "personaname": friend["personaname"] if "personaname" in friend else "",
-        "gameextrainfo": friend["gameextrainfo"] if "gameextrainfo" in friend else ""
+        "gameextrainfo": friend["gameextrainfo"] if "gameextrainfo" in friend else "",
+        "localized_game_name": (await get_localized_game_name(friend["gameid"], friend["gameextrainfo"])) if "gameid" in friend else ""
     }
 
 
