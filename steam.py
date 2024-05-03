@@ -272,7 +272,7 @@ async def remove_steam_sub(bot, ev):
 
 
 @sv.on_fullmatch(("steam订阅列表", "谁在玩游戏"))
-async def steam_sub(bot, ev):
+async def steam_sub_list(bot, ev):
     group_id = ev["group_id"]
     group_state_dict = {}
     await update_game_status()
