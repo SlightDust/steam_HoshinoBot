@@ -27,10 +27,7 @@ sv = service.Service("steam", enable_on_default=True, help_=help_)
 
 combined_mode = True
 
-proxies = {
-    'http': 'http://127.0.0.1:1080',
-    'https': 'http://127.0.0.1:1080',
-}
+proxies = None
 
 current_folder = os.path.dirname(__file__)
 config_file = os.path.join(current_folder, 'steam.json')
