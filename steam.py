@@ -25,17 +25,19 @@ help_ = """
 
 sv = service.Service("steam", enable_on_default=True, help_=help_)
 
-combined_mode = True
-
-proxies = None
-
 current_folder = os.path.dirname(__file__)
 config_file = os.path.join(current_folder, 'steam.json')
 
 # 初次启动时创建缺省配置文件
 if not os.path.exists(config_file):
     with open(config_file, mode="w") as f:
-        f.write(json.dumps({"key": "your-steam-key-here", "language": "schinese", "subscribes": {}}, indent=4))
+        f.write(json.dumps({
+            "key": "your-steam-key-here",
+            "language": "schinese",
+            "subscribes": {},
+            "combined_mode": True,
+            "proxies": None
+        }, indent=4))
 
 # 加载配置文件
 with open(config_file, mode="r") as f:
@@ -44,6 +46,12 @@ with open(config_file, mode="r") as f:
     # 兼容旧版本配置文件
     if "language" not in cfg:
         cfg["language"] = "schinese"
+    if "combined_mode" not in cfg:
+        cfg["combined_mode"] = True
+    if "proxies" not in cfg:
+        cfg["proxies"] = None
+    combined_mode = cfg["combined_mode"]
+    proxies = cfg["proxies"]
     # 保存更新后的配置文件
     with open(config_file, mode="w") as f:
         f.write(json.dumps(cfg, indent=4))
