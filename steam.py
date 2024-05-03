@@ -406,12 +406,14 @@ async def combined_broadcast(old_state: dict):
             # 获取订阅了该账号的群
             glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
             for group in glist:
-                if val["gameextrainfo"] == "":
+                if val["gameextrainfo"] == "": # 如果新状态为空，说明停止了游戏
+                    # 由于新状态为空，所以从旧状态中获取游戏名
                     game_name = old_state[key]["localized_game_name"] \
                         if old_state[key]["localized_game_name"] != "" \
                         else old_state[key]["gameextrainfo"]
                     group_game_info_broadcast_dict[group][game_name]["stop"].append(old_state[key])
-                else:
+                else:  # 否则说明开始了游戏
+                    # 从新状态中获取游戏名
                     game_name = val["localized_game_name"] if val["localized_game_name"] != "" else val["gameextrainfo"]
                     group_game_info_broadcast_dict[group][game_name]["start"].append(val)
     # 遍历每个群组的游戏状态变化，发送消息
@@ -422,7 +424,7 @@ async def combined_broadcast(old_state: dict):
             start = info["start"]
             stop = info["stop"]
             if len(start) != 0:
-                # 递归创建所有人的图片并添加到img_list
+                # 迭代创建所有人的图片并添加到img_list
                 start_game_image_list.extend([await make_img(player) for player in start])
             if len(stop) != 0:
                 stop_game_message_list.append("{}不玩{}了！".format(
@@ -434,6 +436,7 @@ async def combined_broadcast(old_state: dict):
             for i, image in enumerate(start_game_image_list):
                 img.paste(image, (0, 86 * i))
             await broadcast({group}, MessageSegment.image(pic2b64(img)))
+        # 发送停止游戏的消息
         if len(stop_game_message_list) != 0:
             await broadcast({group}, "\n".join(stop_game_message_list))
 
