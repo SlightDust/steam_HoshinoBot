@@ -11,7 +11,7 @@ except ImportError:
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from nonebot import MessageSegment
-
+from collections import defaultdict
 from hoshino import service, aiorequests
 from hoshino.util import pic2b64
 
@@ -25,7 +25,12 @@ help_ = """
 
 sv = service.Service("steam", enable_on_default=True, help_=help_)
 
-proxies = None
+combined_mode = True
+
+proxies = {
+    'http': 'http://127.0.0.1:1080',
+    'https': 'http://127.0.0.1:1080',
+}
 
 current_folder = os.path.dirname(__file__)
 config_file = os.path.join(current_folder, 'steam.json')
@@ -295,7 +300,8 @@ async def steam(bot, ev):
         await bot.send(ev, f"%s 没在玩游戏！" % rsp["personaname"])
     else:
         await bot.send(ev, f"%s 正在玩 %s ！" % (
-        rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
+            rsp["personaname"],
+            rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
 
 
 @sv.on_fullmatch("重载steam订阅配置", only_to_me=True)
@@ -372,10 +378,61 @@ async def del_steam_ids(steam_id, group):
     await update_game_status()
 
 
-@sv.scheduled_job('cron', minute='*/2')
+@sv.scheduled_job('cron', minute='*/2')  # 时间为偶数分钟时运行, 每两分钟运行一次
 async def check_steam_status():
     old_state = playing_state.copy()
     await update_game_status()
+    if combined_mode:
+        await combined_broadcast(old_state)
+    else:
+        await single_broadcast(old_state)
+
+
+async def combined_broadcast(old_state: dict):
+    # { group_id: { game_name: {start: [player1, player2], stop: [player3, player4]}}}
+    # 查询每个群组的游戏状态变化, 将信息整合为群组级别的变化
+    group_game_info_broadcast_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    for key, val in playing_state.items():  # 遍历每个人的游戏状态
+        if key not in old_state:
+            sv.logger.info(f"缓存为空，初始化 {key} 的游戏状态。")
+            continue
+        if val["gameextrainfo"] != old_state[key]["gameextrainfo"]:
+            # 获取订阅了该账号的群
+            glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
+            for group in glist:
+                if val["gameextrainfo"] == "":
+                    game_name = old_state[key]["localized_game_name"] \
+                        if old_state[key]["localized_game_name"] != "" \
+                        else old_state[key]["gameextrainfo"]
+                    group_game_info_broadcast_dict[group][game_name]["stop"].append(old_state[key])
+                else:
+                    game_name = val["localized_game_name"] if val["localized_game_name"] != "" else val["gameextrainfo"]
+                    group_game_info_broadcast_dict[group][game_name]["start"].append(val)
+    # 遍历每个群组的游戏状态变化，发送消息
+    for group, game_change in group_game_info_broadcast_dict.items():
+        start_game_image_list = []
+        stop_game_message_list = []
+        for game_name, info in game_change.items():
+            start = info["start"]
+            stop = info["stop"]
+            if len(start) != 0:
+                # 递归创建所有人的图片并添加到img_list
+                start_game_image_list.extend([await make_img(player) for player in start])
+            if len(stop) != 0:
+                stop_game_message_list.append("{}不玩{}了！".format(
+                    ", ".join([player["personaname"] for player in stop]),
+                    game_name))
+        # 将所有图片合并为从上到下的一张图片
+        if len(start_game_image_list) != 0:
+            img = Image.new("RGB", (int(280 * 1.6), 86 * len(start_game_image_list)), (33, 33, 33))
+            for i, image in enumerate(start_game_image_list):
+                img.paste(image, (0, 86 * i))
+            await broadcast({group}, MessageSegment.image(pic2b64(img)))
+        if len(stop_game_message_list) != 0:
+            await broadcast({group}, "\n".join(stop_game_message_list))
+
+
+async def single_broadcast(old_state: dict):
     for key, val in playing_state.items():
         if key not in old_state:
             sv.logger.info(f"缓存为空，初始化 {key} 的游戏状态。")
@@ -389,8 +446,6 @@ async def check_steam_status():
                                                                                                  "localized_game_name"] != "" else
                                                     old_state[key]["gameextrainfo"]))
             else:
-                # await broadcast(glist,
-                #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
                 await broadcast(glist, MessageSegment.image(pic2b64(await make_img(playing_state[key]))))
 
 
