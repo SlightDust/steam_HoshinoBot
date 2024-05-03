@@ -49,11 +49,11 @@ with open(config_file, mode="r") as f:
 playing_state = {}
 
 
-async def format_id(id: str) -> str:
-    if id.startswith('76561') and len(id) == 17:
-        return id
+async def format_id(steam_id: str) -> str:
+    if steam_id.startswith('76561') and len(steam_id) == 17:
+        return steam_id
     else:
-        resp = await aiorequests.get(f'https://steamcommunity.com/id/{id}?xml=1', proxies=proxies)
+        resp = await aiorequests.get(f'https://steamcommunity.com/id/{steam_id}?xml=1', proxies=proxies)
         xml = etree.XML(await resp.content)
         return xml.xpath('/profile/steamID64')[0].text
 
