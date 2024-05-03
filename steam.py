@@ -243,7 +243,7 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
 
 
 @sv.on_prefix("添加steam订阅")
-async def steam(bot, ev):
+async def add_steam_sub(bot, ev):
     account = str(ev.message).strip()
     try:
         await update_steam_ids(account, ev["group_id"])
@@ -262,7 +262,7 @@ async def steam(bot, ev):
 
 
 @sv.on_prefix("取消steam订阅")
-async def steam(bot, ev):
+async def remove_steam_sub(bot, ev):
     account = str(ev.message).strip()
     try:
         await del_steam_ids(account, ev["group_id"])
@@ -272,7 +272,7 @@ async def steam(bot, ev):
 
 
 @sv.on_fullmatch(("steam订阅列表", "谁在玩游戏"))
-async def steam(bot, ev):
+async def steam_sub(bot, ev):
     group_id = ev["group_id"]
     group_state_dict = {}
     await update_game_status()
@@ -288,7 +288,7 @@ async def steam(bot, ev):
 
 
 @sv.on_prefix("查询steam账号")
-async def steam(bot, ev):
+async def search_steam_account(bot, ev):
     account = str(ev.message).strip()
     rsp = await get_account_status(account)
     if rsp["personaname"] == "":
