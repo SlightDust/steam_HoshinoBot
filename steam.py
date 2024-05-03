@@ -212,8 +212,8 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
         # 先尝试从本地缓存中找指定语言的游戏名：
         with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
             localized_game_name_dict = json.loads(f.read())
-            if str(steam_appid) in localized_game_name_dict and cfg["language"] in localized_game_name_dict[
-                str(steam_appid)]:
+            if str(steam_appid) in localized_game_name_dict and \
+                    cfg["language"] in localized_game_name_dict[str(steam_appid)]:
                 return localized_game_name_dict[str(steam_appid)][cfg["language"]]
     # 本地缓存里没有
     # 通过steamapi查询
@@ -307,12 +307,12 @@ async def reload_config(bot, ev):
     await bot.send(ev, "重载成功！")
 
 
-async def get_account_status(id) -> dict:
-    id = await format_id(id)
+async def get_account_status(steam_id) -> dict:
+    steam_id = await format_id(steam_id)
     params = {
         "key": cfg["key"],
         "format": "json",
-        "steamids": id
+        "steamids": steam_id
     }
     resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
                                  proxies=proxies)
