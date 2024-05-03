@@ -220,12 +220,12 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     if not os.path.exists(os.path.join(current_folder, 'localized_game_name.json')):
         with open(os.path.join(current_folder, 'localized_game_name.json'), mode="w") as f:
             f.write(json.dumps({"000000": {"language_name": "localized_game_name"}}, indent=4, ensure_ascii=False))
-        # 先尝试从本地缓存中找指定语言的游戏名：
-        with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
-            localized_game_name_dict = json.loads(f.read())
-            if str(steam_appid) in localized_game_name_dict and \
-                    cfg["language"] in localized_game_name_dict[str(steam_appid)]:
-                return localized_game_name_dict[str(steam_appid)][cfg["language"]]
+    # 先尝试从本地缓存中找指定语言的游戏名：
+    with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
+        localized_game_name_dict = json.loads(f.read())
+        if str(steam_appid) in localized_game_name_dict and \
+                cfg["language"] in localized_game_name_dict[str(steam_appid)]:
+            return localized_game_name_dict[str(steam_appid)][cfg["language"]]
     # 本地缓存里没有
     # 通过steamapi查询
     url = f'https://store.steampowered.com/api/appdetails?appids={steam_appid}&l={cfg["language"]}'
