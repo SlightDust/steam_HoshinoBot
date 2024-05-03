@@ -247,7 +247,8 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
             return localized_game_name
         else:
             return ""
-    except:
+    except Exception as e:
+        sv.logger.error(f"获取游戏名失败: {e}")
         return ""
 
 
@@ -266,7 +267,8 @@ async def add_steam_sub(bot, ev):
                                                     rsp["localized_game_name"] if rsp["localized_game_name"] != "" else
                                                     rsp["gameextrainfo"]))
         await bot.send(ev, "订阅成功")
-    except:
+    except Exception as e:
+        sv.logger.error(f"添加Steam订阅失败: {e}")
         await bot.send(ev, "订阅失败")
 
 
@@ -276,7 +278,8 @@ async def remove_steam_sub(bot, ev):
     try:
         await del_steam_ids(account, ev["group_id"])
         await bot.send(ev, "取消订阅成功")
-    except:
+    except Exception as e:
+        sv.logger.error(f"取消Steam订阅失败: {e}")
         await bot.send(ev, "取消订阅失败")
 
 
