@@ -12,7 +12,7 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from nonebot import MessageSegment
 from collections import defaultdict
-from hoshino import service, aiorequests
+from hoshino import service, aiorequests, get_self_ids, get_bot
 from hoshino.util import pic2b64
 
 help_ = """
@@ -455,6 +455,18 @@ async def single_broadcast(old_state: dict):
 
 
 async def broadcast(group_list: set, msg):
-    for group in group_list:
-        await sv.bot.send_group_msg(group_id=group, message=msg)
-        await sleep(0.5)
+    bot = get_bot()
+    bot_ids = get_self_ids()
+    if len(bot_ids) > 1:
+        group_bot_map = {}
+        for bot_id in bot_ids:
+            glist = await bot.get_group_list(self_id=bot_id, no_cache=True)
+            for g in glist:
+                group_bot_map[g["group_id"]] = bot_id
+        for group in group_list:
+            await sv.bot.send_group_msg(self_id=group_bot_map[group], group_id=group, message=msg)
+            await sleep(0.5)
+    else:
+        for group in group_list:
+            await sv.bot.send_group_msg(self_id=bot_ids[0], group_id=group, message=msg)
+            await sleep(0.5)
