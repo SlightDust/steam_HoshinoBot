@@ -25,7 +25,6 @@ help_ = """
 
 sv = service.Service("steam", enable_on_default=True, help_=help_)
 
-
 proxies = None
 
 current_folder = os.path.dirname(__file__)
@@ -34,7 +33,7 @@ config_file = os.path.join(current_folder, 'steam.json')
 # 初次启动时创建缺省配置文件
 if not os.path.exists(config_file):
     with open(config_file, mode="w") as f:
-        f.write(json.dumps({"key": "your-steam-key-here","language":"schinese", "subscribes": {}}, indent=4))
+        f.write(json.dumps({"key": "your-steam-key-here", "language": "schinese", "subscribes": {}}, indent=4))
 
 # 加载配置文件
 with open(config_file, mode="r") as f:
@@ -46,9 +45,9 @@ with open(config_file, mode="r") as f:
     # 保存更新后的配置文件
     with open(config_file, mode="w") as f:
         f.write(json.dumps(cfg, indent=4))
-    
 
 playing_state = {}
+
 
 async def format_id(id: str) -> str:
     if id.startswith('76561') and len(id) == 17:
@@ -187,13 +186,14 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
             else:  # 非好友
                 last_logoff = "离线"
             draw.text((x + padding_left + 48 + 5, y + padding_top + 23), last_logoff,
-                        fill=gray,
-                        font=font_multilang_small)
+                      fill=gray,
+                      font=font_multilang_small)
         y += 48 + spacing
     # 给最终结果创建一个环绕四周的边框, 颜色和背景色一致
     result_with_border = Image.new("RGB", (w + border_size * 2, h + border_size * 2), (33, 33, 33))
     result_with_border.paste(background, (border_size, border_size))
     return result_with_border
+
 
 async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     """
@@ -208,11 +208,12 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     # 首次调用，检查本地缓存文件
     if not os.path.exists(os.path.join(current_folder, 'localized_game_name.json')):
         with open(os.path.join(current_folder, 'localized_game_name.json'), mode="w") as f:
-            f.write(json.dumps({"000000":{"language_name":"localized_game_name"}}, indent=4, ensure_ascii=False))
-    # 先尝试从本地缓存中找指定语言的游戏名：
+            f.write(json.dumps({"000000": {"language_name": "localized_game_name"}}, indent=4, ensure_ascii=False))
+        # 先尝试从本地缓存中找指定语言的游戏名：
         with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
             localized_game_name_dict = json.loads(f.read())
-            if str(steam_appid) in localized_game_name_dict and cfg["language"] in localized_game_name_dict[str(steam_appid)]:
+            if str(steam_appid) in localized_game_name_dict and cfg["language"] in localized_game_name_dict[
+                str(steam_appid)]:
                 return localized_game_name_dict[str(steam_appid)][cfg["language"]]
     # 本地缓存里没有
     # 通过steamapi查询
@@ -238,6 +239,7 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     except:
         return ""
 
+
 @sv.on_prefix("添加steam订阅")
 async def steam(bot, ev):
     account = str(ev.message).strip()
@@ -249,7 +251,9 @@ async def steam(bot, ev):
         elif rsp["gameextrainfo"] == "":
             await bot.send(ev, f"%s 没在玩游戏！" % rsp["personaname"])
         else:
-            await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
+            await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"],
+                                                    rsp["localized_game_name"] if rsp["localized_game_name"] != "" else
+                                                    rsp["gameextrainfo"]))
         await bot.send(ev, "订阅成功")
     except:
         await bot.send(ev, "订阅失败")
@@ -290,7 +294,9 @@ async def steam(bot, ev):
     elif rsp["gameextrainfo"] == "":
         await bot.send(ev, f"%s 没在玩游戏！" % rsp["personaname"])
     else:
-        await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
+        await bot.send(ev, f"%s 正在玩 %s ！" % (
+        rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
+
 
 @sv.on_fullmatch("重载steam订阅配置", only_to_me=True)
 async def reload_config(bot, ev):
@@ -299,6 +305,7 @@ async def reload_config(bot, ev):
         f = f.read()
         cfg = json.loads(f)
     await bot.send(ev, "重载成功！")
+
 
 async def get_account_status(id) -> dict:
     id = await format_id(id)
@@ -314,7 +321,8 @@ async def get_account_status(id) -> dict:
     return {
         "personaname": friend["personaname"] if "personaname" in friend else "",
         "gameextrainfo": friend["gameextrainfo"] if "gameextrainfo" in friend else "",
-        "localized_game_name": (await get_localized_game_name(friend["gameid"], friend["gameextrainfo"])) if "gameid" in friend else ""
+        "localized_game_name": (
+            await get_localized_game_name(friend["gameid"], friend["gameextrainfo"])) if "gameid" in friend else ""
     }
 
 
@@ -336,8 +344,11 @@ async def update_game_status():
             "gameextrainfo": player["gameextrainfo"] if "gameextrainfo" in player else "",
             "avatarmedium": player["avatarmedium"],
             "gameid": player["gameid"] if "gameid" in player else "",
-            "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None,   # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
-            "localized_game_name": (await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""  # 本体游戏名
+            "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None,
+            # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
+            "localized_game_name": (
+                await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""
+            # 本体游戏名
         }
 
 
@@ -373,7 +384,10 @@ async def check_steam_status():
             glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
             if val["gameextrainfo"] == "":
                 await broadcast(glist,
-                                "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["localized_game_name"] if old_state[key]["localized_game_name"] != "" else old_state[key]["gameextrainfo"]))
+                                "%s 不玩 %s 了！" % (val["personaname"],
+                                                    old_state[key]["localized_game_name"] if old_state[key][
+                                                                                                 "localized_game_name"] != "" else
+                                                    old_state[key]["gameextrainfo"]))
             else:
                 # await broadcast(glist,
                 #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
