@@ -38,6 +38,7 @@ if not os.path.exists(config_file):
             "combined_mode": True,
             "proxies": None
         }, indent=4))
+    sv.logger.error("Steam推送初始化成功, 请编辑steam.json配置文件！")
 
 # 加载配置文件
 with open(config_file, mode="r") as f:
