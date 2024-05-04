@@ -11,8 +11,6 @@ froked from [pcrbot/steam](https://github.com/SlightDust/steam.git)
 3. 初次启动前，复制`steam.json.example`为`steam.json`，填入api key。或在初次启动后，在生成的steam.json中填入api key，然后在群聊内发送`@bot 重载steam订阅配置`。  
 
 ### 使用方法
-自备`simhei.ttf`和`tahoma.ttf`两个字体文件，放在插件目录即可。  
-前者在`C:\Windows\Fonts\`，后者可以从L4D2的目录里拿`Left 4 Dead 2\platform\vgui\fonts\`。  
 
 |指令|说明|指令示例|
 |----|----|----|
@@ -27,8 +25,12 @@ froked from [pcrbot/steam](https://github.com/SlightDust/steam.git)
 steam客户端 - 帮助 - Steam客服 - 我的账户 - 您Steam账户的相关数据 - 开发者设置
 
 ### 效果
-![](https://s2.loli.net/2024/03/24/WwR3FZuABXoSMTj.png)
+![](https://s2.loli.net/2024/05/04/BjdAOsp92F3emal.jpg)  
+
+![](https://private-user-images.githubusercontent.com/66729711/327839450-1c70f4ac-0d36-4a2c-ad67-0eb9014a40b7.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTQ4MjAwMDMsIm5iZiI6MTcxNDgxOTcwMywicGF0aCI6Ii82NjcyOTcxMS8zMjc4Mzk0NTAtMWM3MGY0YWMtMGQzNi00YTJjLWFkNjctMGViOTAxNGE0MGI3LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA1MDQlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNTA0VDEwNDgyM1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTVlMjE4ZTEyN2YwOGZjMmFjMzU1MGE4YjQ1ZjkwMzdlYWZiMTg3NzhlMTk0YTE1OWRmMzBiYjUwODJlNjVkZjkmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.tZjtb28B1Q1tK-q-nJ6fLm0oUsQKzvhmJDTxYCnp2lM)  
+
+![](https://private-user-images.githubusercontent.com/66729711/327839482-8308e157-431a-45d4-8a82-45fa642b83b9.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTQ4MjAwMDMsIm5iZiI6MTcxNDgxOTcwMywicGF0aCI6Ii82NjcyOTcxMS8zMjc4Mzk0ODItODMwOGUxNTctNDMxYS00NWQ0LThhODItNDVmYTY0MmI4M2I5LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA1MDQlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNTA0VDEwNDgyM1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWNmNmU1OTI5NmU5Y2VjZWQ0MDkzMDg5NzVmMjk4NmZiZGYyZWRiZDM4NjhlZDc1NGZiYTJiNTNkNGY4MjVhZWEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.Im8ehAhul9CWE28U0ADop3nAI0nSo8aOhpnU0Yqx8Ow)
 
 ### todo
 - [x] 重启之后第一次查询会报错。遗留问题，之后改
-- [ ] 图片里名字这行没找到合适的字体
+- [x] 图片里名字这行没找到合适的字体。 开摆，[MiSans](https://hyperos.mi.com/font/zh/)看着也舒服。
