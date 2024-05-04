@@ -2,5 +2,7 @@
     "key": "your-steam-key-here",
     "language": "schinese",
     "subscribes": {
-    }
+    },
+    "combined_mode": true,
+    "proxies": null
 }

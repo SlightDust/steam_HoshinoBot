@@ -11,7 +11,7 @@ except ImportError:
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from nonebot import MessageSegment
-
+from collections import defaultdict
 from hoshino import service, aiorequests, get_self_ids, get_bot
 from hoshino.util import pic2b64
 
@@ -25,16 +25,20 @@ help_ = """
 
 sv = service.Service("steam", enable_on_default=True, help_=help_)
 
-
-proxies = None
-
 current_folder = os.path.dirname(__file__)
 config_file = os.path.join(current_folder, 'steam.json')
 
 # 初次启动时创建缺省配置文件
 if not os.path.exists(config_file):
     with open(config_file, mode="w") as f:
-        f.write(json.dumps({"key": "your-steam-key-here","language":"schinese", "subscribes": {}}, indent=4))
+        f.write(json.dumps({
+            "key": "your-steam-key-here",
+            "language": "schinese",
+            "subscribes": {},
+            "combined_mode": True,
+            "proxies": None
+        }, indent=4))
+    sv.logger.error("Steam推送初始化成功, 请编辑steam.json配置文件！")
 
 # 加载配置文件
 with open(config_file, mode="r") as f:
@@ -43,18 +47,24 @@ with open(config_file, mode="r") as f:
     # 兼容旧版本配置文件
     if "language" not in cfg:
         cfg["language"] = "schinese"
+    if "combined_mode" not in cfg:
+        cfg["combined_mode"] = True
+    if "proxies" not in cfg:
+        cfg["proxies"] = None
+    combined_mode = cfg["combined_mode"]
+    proxies = cfg["proxies"]
     # 保存更新后的配置文件
     with open(config_file, mode="w") as f:
         f.write(json.dumps(cfg, indent=4))
-    
 
 playing_state = {}
 
-async def format_id(id: str) -> str:
-    if id.startswith('76561') and len(id) == 17:
-        return id
+
+async def format_id(steam_id: str) -> str:
+    if steam_id.startswith('76561') and len(steam_id) == 17:
+        return steam_id
     else:
-        resp = await aiorequests.get(f'https://steamcommunity.com/id/{id}?xml=1', proxies=proxies)
+        resp = await aiorequests.get(f'https://steamcommunity.com/id/{steam_id}?xml=1', proxies=proxies)
         xml = etree.XML(await resp.content)
         return xml.xpath('/profile/steamID64')[0].text
 
@@ -187,13 +197,14 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
             else:  # 非好友
                 last_logoff = "离线"
             draw.text((x + padding_left + 48 + 5, y + padding_top + 23), last_logoff,
-                        fill=gray,
-                        font=font_multilang_small)
+                      fill=gray,
+                      font=font_multilang_small)
         y += 48 + spacing
     # 给最终结果创建一个环绕四周的边框, 颜色和背景色一致
     result_with_border = Image.new("RGB", (w + border_size * 2, h + border_size * 2), (33, 33, 33))
     result_with_border.paste(background, (border_size, border_size))
     return result_with_border
+
 
 async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     """
@@ -208,12 +219,13 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     # 首次调用，检查本地缓存文件
     if not os.path.exists(os.path.join(current_folder, 'localized_game_name.json')):
         with open(os.path.join(current_folder, 'localized_game_name.json'), mode="w") as f:
-            f.write(json.dumps({"000000":{"language_name":"localized_game_name"}}, indent=4, ensure_ascii=False))
+            f.write(json.dumps({"000000": {"language_name": "localized_game_name"}}, indent=4, ensure_ascii=False))
     # 先尝试从本地缓存中找指定语言的游戏名：
-        with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
-            localized_game_name_dict = json.loads(f.read())
-            if str(steam_appid) in localized_game_name_dict and cfg["language"] in localized_game_name_dict[str(steam_appid)]:
-                return localized_game_name_dict[str(steam_appid)][cfg["language"]]
+    with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
+        localized_game_name_dict = json.loads(f.read())
+        if str(steam_appid) in localized_game_name_dict and \
+                cfg["language"] in localized_game_name_dict[str(steam_appid)]:
+            return localized_game_name_dict[str(steam_appid)][cfg["language"]]
     # 本地缓存里没有
     # 通过steamapi查询
     url = f'https://store.steampowered.com/api/appdetails?appids={steam_appid}&l={cfg["language"]}'
@@ -235,11 +247,13 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
             return localized_game_name
         else:
             return ""
-    except:
+    except Exception as e:
+        sv.logger.error(f"获取游戏名失败: {e}")
         return ""
 
+
 @sv.on_prefix("添加steam订阅")
-async def steam(bot, ev):
+async def add_steam_sub(bot, ev):
     account = str(ev.message).strip()
     try:
         await update_steam_ids(account, ev["group_id"])
@@ -249,24 +263,28 @@ async def steam(bot, ev):
         elif rsp["gameextrainfo"] == "":
             await bot.send(ev, f"%s 没在玩游戏！" % rsp["personaname"])
         else:
-            await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
+            await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"],
+                                                    rsp["localized_game_name"] if rsp["localized_game_name"] != "" else
+                                                    rsp["gameextrainfo"]))
         await bot.send(ev, "订阅成功")
-    except:
+    except Exception as e:
+        sv.logger.error(f"添加Steam订阅失败: {e}")
         await bot.send(ev, "订阅失败")
 
 
 @sv.on_prefix("取消steam订阅")
-async def steam(bot, ev):
+async def remove_steam_sub(bot, ev):
     account = str(ev.message).strip()
     try:
         await del_steam_ids(account, ev["group_id"])
         await bot.send(ev, "取消订阅成功")
-    except:
+    except Exception as e:
+        sv.logger.error(f"取消Steam订阅失败: {e}")
         await bot.send(ev, "取消订阅失败")
 
 
 @sv.on_fullmatch(("steam订阅列表", "谁在玩游戏"))
-async def steam(bot, ev):
+async def steam_sub_list(bot, ev):
     group_id = ev["group_id"]
     group_state_dict = {}
     await update_game_status()
@@ -282,7 +300,7 @@ async def steam(bot, ev):
 
 
 @sv.on_prefix("查询steam账号")
-async def steam(bot, ev):
+async def search_steam_account(bot, ev):
     account = str(ev.message).strip()
     rsp = await get_account_status(account)
     if rsp["personaname"] == "":
@@ -290,7 +308,10 @@ async def steam(bot, ev):
     elif rsp["gameextrainfo"] == "":
         await bot.send(ev, f"%s 没在玩游戏！" % rsp["personaname"])
     else:
-        await bot.send(ev, f"%s 正在玩 %s ！" % (rsp["personaname"], rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
+        await bot.send(ev, f"%s 正在玩 %s ！" % (
+            rsp["personaname"],
+            rsp["localized_game_name"] if rsp["localized_game_name"] != "" else rsp["gameextrainfo"]))
+
 
 @sv.on_fullmatch("重载steam订阅配置", only_to_me=True)
 async def reload_config(bot, ev):
@@ -300,12 +321,13 @@ async def reload_config(bot, ev):
         cfg = json.loads(f)
     await bot.send(ev, "重载成功！")
 
-async def get_account_status(id) -> dict:
-    id = await format_id(id)
+
+async def get_account_status(steam_id) -> dict:
+    steam_id = await format_id(steam_id)
     params = {
         "key": cfg["key"],
         "format": "json",
-        "steamids": id
+        "steamids": steam_id
     }
     resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
                                  proxies=proxies)
@@ -314,7 +336,8 @@ async def get_account_status(id) -> dict:
     return {
         "personaname": friend["personaname"] if "personaname" in friend else "",
         "gameextrainfo": friend["gameextrainfo"] if "gameextrainfo" in friend else "",
-        "localized_game_name": (await get_localized_game_name(friend["gameid"], friend["gameextrainfo"])) if "gameid" in friend else ""
+        "localized_game_name": (
+            await get_localized_game_name(friend["gameid"], friend["gameextrainfo"])) if "gameid" in friend else ""
     }
 
 
@@ -336,8 +359,11 @@ async def update_game_status():
             "gameextrainfo": player["gameextrainfo"] if "gameextrainfo" in player else "",
             "avatarmedium": player["avatarmedium"],
             "gameid": player["gameid"] if "gameid" in player else "",
-            "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None,   # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
-            "localized_game_name": (await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""  # 本体游戏名
+            "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None,
+            # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
+            "localized_game_name": (
+                await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""
+            # 本体游戏名
         }
 
 
@@ -361,10 +387,64 @@ async def del_steam_ids(steam_id, group):
     await update_game_status()
 
 
-@sv.scheduled_job('cron', minute='*/2')
+@sv.scheduled_job('cron', minute='*/2')  # 时间为偶数分钟时运行, 每两分钟运行一次
 async def check_steam_status():
     old_state = playing_state.copy()
     await update_game_status()
+    if combined_mode:
+        await combined_broadcast(old_state)
+    else:
+        await single_broadcast(old_state)
+
+
+async def combined_broadcast(old_state: dict):
+    # { group_id: { game_name: {start: [player1, player2], stop: [player3, player4]}}}
+    # 查询每个群组的游戏状态变化, 将信息整合为群组级别的变化
+    group_game_info_broadcast_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    for key, val in playing_state.items():  # 遍历每个人的游戏状态
+        if key not in old_state:
+            sv.logger.info(f"缓存为空，初始化 {key} 的游戏状态。")
+            continue
+        if val["gameextrainfo"] != old_state[key]["gameextrainfo"]:
+            # 获取订阅了该账号的群
+            glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
+            for group in glist:
+                if val["gameextrainfo"] == "": # 如果新状态为空，说明停止了游戏
+                    # 由于新状态为空，所以从旧状态中获取游戏名
+                    game_name = old_state[key]["localized_game_name"] \
+                        if old_state[key]["localized_game_name"] != "" \
+                        else old_state[key]["gameextrainfo"]
+                    group_game_info_broadcast_dict[group][game_name]["stop"].append(old_state[key])
+                else:  # 否则说明开始了游戏
+                    # 从新状态中获取游戏名
+                    game_name = val["localized_game_name"] if val["localized_game_name"] != "" else val["gameextrainfo"]
+                    group_game_info_broadcast_dict[group][game_name]["start"].append(val)
+    # 遍历每个群组的游戏状态变化，发送消息
+    for group, game_change in group_game_info_broadcast_dict.items():
+        start_game_image_list = []
+        stop_game_message_list = []
+        for game_name, info in game_change.items():
+            start = info["start"]
+            stop = info["stop"]
+            if len(start) != 0:
+                # 迭代创建所有人的图片并添加到img_list
+                start_game_image_list.extend([await make_img(player) for player in start])
+            if len(stop) != 0:
+                stop_game_message_list.append("{}不玩{}了！".format(
+                    ", ".join([player["personaname"] for player in stop]),
+                    game_name))
+        # 将所有图片合并为从上到下的一张图片
+        if len(start_game_image_list) != 0:
+            img = Image.new("RGB", (int(280 * 1.6), 86 * len(start_game_image_list)), (33, 33, 33))
+            for i, image in enumerate(start_game_image_list):
+                img.paste(image, (0, 86 * i))
+            await broadcast({group}, MessageSegment.image(pic2b64(img)))
+        # 发送停止游戏的消息
+        if len(stop_game_message_list) != 0:
+            await broadcast({group}, "\n".join(stop_game_message_list))
+
+
+async def single_broadcast(old_state: dict):
     for key, val in playing_state.items():
         if key not in old_state:
             sv.logger.info(f"缓存为空，初始化 {key} 的游戏状态。")
@@ -373,10 +453,11 @@ async def check_steam_status():
             glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
             if val["gameextrainfo"] == "":
                 await broadcast(glist,
-                                "%s 不玩 %s 了！" % (val["personaname"], old_state[key]["localized_game_name"] if old_state[key]["localized_game_name"] != "" else old_state[key]["gameextrainfo"]))
+                                "%s 不玩 %s 了！" % (val["personaname"],
+                                                    old_state[key]["localized_game_name"] if old_state[key][
+                                                                                                 "localized_game_name"] != "" else
+                                                    old_state[key]["gameextrainfo"]))
             else:
-                # await broadcast(glist,
-                #                 "%s 正在游玩 %s ！" % (val["personaname"], val["gameextrainfo"]))
                 await broadcast(glist, MessageSegment.image(pic2b64(await make_img(playing_state[key]))))
 
 
