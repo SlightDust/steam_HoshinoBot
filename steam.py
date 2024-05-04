@@ -415,7 +415,7 @@ async def combined_broadcast(old_state: dict):
                 # 迭代创建所有人的图片并添加到img_list
                 start_game_image_list.extend([await make_img(player) for player in start])
             if len(stop) != 0:
-                stop_game_message_list.append("{}不玩{}了！".format(
+                stop_game_message_list.append("{} 不玩 {}了！".format(
                     ", ".join([player["personaname"] for player in stop]),
                     game_name))
         # 将所有图片合并为从上到下的一张图片
