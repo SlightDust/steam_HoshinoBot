@@ -155,9 +155,9 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
         if _is_playing:
             return 0, _game_name  # 在游戏中，按照游戏名称排序
         elif _is_online:
-            return 1, ""  # 在线但不在游戏中，按照游戏名称排序
+            return 1, ""  # 在线但不在游戏中
         else:
-            return 2, ""  # 不在线，按照游戏名称排序
+            return 2, ""  # 不在线
 
     # 按照在线状态排序
     for steam_id, status in sorted(group_playing_state.items(), key=lambda state: _sorting_key(state[1])):
