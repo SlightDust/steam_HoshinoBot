@@ -97,7 +97,7 @@ async def make_img(data):
     img.paste(green_line, (74, 10))
     draw.text((90, 10), player_name, fill=(193, 217, 167), font=font)
     draw.text((90, 10 + spacing - 2), mid, fill=(115, 115, 115), font=font)
-    draw.text((90, 10+spacing*2), game_name, fill=(135, 181, 82), font=font)
+    draw.text((90, 10 + spacing * 2), game_name, fill=(135, 181, 82), font=font)
 
     # img.show()
     return img
@@ -105,13 +105,19 @@ async def make_img(data):
 
 def calculate_last_login_time(last_logoff: int) -> str:
     """
-    计算steam距离最后一次登录距离现在时间过去了多次时间, 如果是月份则显示月份，如果是天数则显示天数和小时，如果是小时则显示小时
+    计算steam距离最后一次登录距离现在时间过去了多次时间,
+    如果超过一年则显示年份，
+    如果达到月则显示月份，
+    如果达到天则显示天数和小时，
+    如果是小时则显示小时
     :param last_logoff: 最后一次登录时间
     :return: 距离最后一次登录时间过去了多久
     """
     current_time = datetime.now().timestamp()
     time_diff = current_time - last_logoff
-    if time_diff > 30 * 24 * 60 * 60:
+    if time_diff > 365 * 24 * 60 * 60:
+        return f"{int(time_diff / (365 * 24 * 60 * 60))}年"
+    elif time_diff > 30 * 24 * 60 * 60:
         return f"{int(time_diff / (30 * 24 * 60 * 60))}月"
     elif time_diff > 24 * 60 * 60:
         return f"{int(time_diff / (24 * 60 * 60))}天{int((time_diff % (24 * 60 * 60)) / 3600)}小时"
@@ -140,7 +146,21 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
     h = 48 * status_num + spacing * (status_num - 1)
     background = Image.new("RGB", (w, h), (33, 33, 33))
     draw = ImageDraw.Draw(background)
-    for steam_id, status in group_playing_state.items():
+
+    def _sorting_key(player_status):
+        _game_name = status["gameextrainfo"]
+        _is_playing = bool(_game_name)
+        _is_online = player_status.get("personastate") != 0
+
+        if _is_playing:
+            return 0, _game_name  # 在游戏中，按照游戏名称排序
+        elif _is_online:
+            return 1, ""  # 在线但不在游戏中，按照游戏名称排序
+        else:
+            return 2, ""  # 不在线，按照游戏名称排序
+
+    # 按照在线状态排序
+    for steam_id, status in sorted(group_playing_state.items(), key=lambda state: _sorting_key(state[1])):
         player_name = status["personaname"]
         game_info = status["localized_game_name"] if status["localized_game_name"] != "" else status["gameextrainfo"]
         avatar_url = status["avatarmedium"]
@@ -394,7 +414,7 @@ async def combined_broadcast(old_state: dict):
             # 获取订阅了该账号的群
             glist = set(cfg["subscribes"][key]) & set((await sv.get_enable_groups()).keys())
             for group in glist:
-                if val["gameextrainfo"] == "": # 如果新状态为空，说明停止了游戏
+                if val["gameextrainfo"] == "":  # 如果新状态为空，说明停止了游戏
                     # 由于新状态为空，所以从旧状态中获取游戏名
                     game_name = old_state[key]["localized_game_name"] \
                         if old_state[key]["localized_game_name"] != "" \
