@@ -42,7 +42,7 @@ Steam API Key 是由 Valve 提供的一个专门的 API 密钥,
 并且允许使用api进行一些敏感操作例如**发起交易报价**等操作
 
 > [!CAUTION]
-> **安全警告**: 请不要将你的 Steam API Key 上传到任何公共代码仓库。泄露 API 密钥会导致你的账户遭到盗用以及**严重经济损失**。
+> **安全警告**: 请不要将你的 Steam API Key 上传到任何公共代码仓库。泄露 API 密钥会导致你的账户遭到盗用以及造成**严重经济损失**。
 > 见[Steam API 密钥劫持](https://zhuanlan.zhihu.com/p/624601556)
 
 steam客户端 - 帮助 - Steam客服 - 我的账户 - 您Steam账户的相关数据 - 开发者设置
