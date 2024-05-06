@@ -24,6 +24,31 @@ Forked from [pcrbot/steam](https://github.com/SlightDust/steam.git)
 ### steam api key创建方法
 steam客户端 - 帮助 - Steam客服 - 我的账户 - 您Steam账户的相关数据 - 开发者设置
 
+### 配置文件结构
+```json
+
+{
+  // 你的steam api key, 注意不要将此密钥上传到公共仓库, 以免造成经济损失!!!!
+  "key": "填写你的Steam API Key",
+  // 本地化语言, 默认为简体中文
+  "language": "schinese",
+  // 订阅列表, 此字段无需手动填写, 可以通过群内命令添加订阅
+  "subscribes": {
+    // steamid
+    "765611989294*****": [
+      // 群号
+      100000000
+    ]
+  },
+  // 是否将订阅的steam游戏状态合并发送, 避免刷屏
+  "combined_mode": true,
+  // 代理设置
+  "proxies": null,
+  // 向steamapi发起请求的间隔, 默认2秒, 请勿过快请求
+  "request_interval": 2
+}
+```
+
 ### 效果
 ![](https://s2.loli.net/2024/05/04/BjdAOsp92F3emal.jpg)  
 
