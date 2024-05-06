@@ -38,7 +38,8 @@ if not os.path.exists(config_file):
             "language": "schinese",
             "subscribes": {},
             "combined_mode": True,
-            "proxies": None
+            "proxies": None,
+            "request_interval": 2  # 请求间隔, 单位为分钟, 注意请求间隔过短会可能会导致请求失败
         }, indent=4))
     sv.logger.error("Steam推送初始化成功, 请编辑steam.json配置文件！")
 
@@ -53,6 +54,9 @@ with open(config_file, mode="r") as f:
         cfg["combined_mode"] = True
     if "proxies" not in cfg:
         cfg["proxies"] = None
+    if "request_interval" not in cfg:
+        cfg["request_interval"] = 2
+    request_interval = int(cfg["request_interval"])
     combined_mode = cfg["combined_mode"]
     proxies = cfg["proxies"]
     # 保存更新后的配置文件
@@ -460,7 +464,7 @@ async def reload_config(bot, ev):
     await bot.send(ev, "重载成功！")
 
 
-@sv.scheduled_job('cron', minute='*/2')  # 时间为偶数分钟时运行, 每两分钟运行一次
+@sv.scheduled_job('cron', minute=f'*/{request_interval}')
 async def check_steam_status():
     old_state = playing_state.copy()
     await update_game_status()
