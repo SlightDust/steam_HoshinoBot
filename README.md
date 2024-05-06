@@ -16,7 +16,7 @@ Forked from [pcrbot/steam](https://github.com/SlightDust/steam.git)
 
 #### 从旧版移植
 
-1. 将旧版`steam.py`重命名为`steam.py.temp`, 将本仓库的`steam.py`放到该目录下
+1. 将旧版`steam.py`重命名为`steam.py.temp`, 将旧版`steam.json`复制一份为`steam.old.json`进行备份, 将本仓库的`steam.py`放到该目录下
 
 > [!TIP]
 > 如果你持有的json文件是和[旧版](https://github.com/SlightDust/steam)
