@@ -1,5 +1,7 @@
 import json
 import os
+from enum import Enum
+
 from lxml import etree
 from asyncio import sleep
 from datetime import datetime
@@ -59,8 +61,29 @@ with open(config_file, mode="r") as f:
 
 playing_state = {}
 
+# load image from res
+busy_img = Image.open(os.path.join(current_folder, 'res', "busy.png"))
+zzz_gaming_img = Image.open(os.path.join(current_folder, 'res', "zzz_gaming.png"))
+zzz_online_img = Image.open(os.path.join(current_folder, 'res', "zzz_online.png"))
+
+
+class SteamStatus(Enum):
+    """
+    Steam在线状态
+    """
+    OFFLINE = 0
+    ONLINE = 1
+    BUSY = 2
+    AWAY = 3
+    SNOOZE = 4
+    LOOKING_TO_TRADE = 5
+    LOOKING_TO_PLAY = 6
+
 
 async def format_id(steam_id: str) -> str:
+    """
+    获取steam64位id
+    """
     if steam_id.startswith('76561') and len(steam_id) == 17:
         return steam_id
     else:
@@ -77,6 +100,9 @@ async def fetch_avatar(url):
 
 
 async def make_img(data):
+    """
+    生成steam用户游戏状态图片
+    """
     player_name = data["personaname"]  # 昵称
     mid = "is now playing"
     game_name = data["localized_game_name"] if data["localized_game_name"] != "" else data["gameextrainfo"]
@@ -98,8 +124,6 @@ async def make_img(data):
     draw.text((90, 10), player_name, fill=(193, 217, 167), font=font)
     draw.text((90, 10 + spacing - 2), mid, fill=(115, 115, 115), font=font)
     draw.text((90, 10 + spacing * 2), game_name, fill=(135, 181, 82), font=font)
-
-    # img.show()
     return img
 
 
@@ -109,7 +133,8 @@ def calculate_last_login_time(last_logoff: int) -> str:
     如果超过一年则显示年份，
     如果达到月则显示月份，
     如果达到天则显示天数和小时，
-    如果是小时则显示小时
+    如果是小时则显示小时,
+    否则显示分钟
     :param last_logoff: 最后一次登录时间
     :return: 距离最后一次登录时间过去了多久
     """
@@ -121,24 +146,63 @@ def calculate_last_login_time(last_logoff: int) -> str:
         return f"{int(time_diff / (30 * 24 * 60 * 60))}月"
     elif time_diff > 24 * 60 * 60:
         return f"{int(time_diff / (24 * 60 * 60))}天{int((time_diff % (24 * 60 * 60)) / 3600)}小时"
+    elif time_diff > 60 * 60:
+        return f"{int(time_diff / (60 * 60))}小时"
     else:
-        return f"{int(time_diff / 3600)}小时"
+        return f"{int(time_diff / 60)}分钟"
+
+
+def draw_user_info(draw, x, y,
+                   player_name,
+                   info,
+                   font,
+                   font_small,
+                   text_color,
+                   line_color,
+                   padding_top, padding_left,
+                   background):
+    """
+    绘制用户信息
+    """
+    # 用户名
+    draw.text((x + padding_left + 48 + 5, y + padding_top), player_name, fill=text_color,
+              font=font)
+    # 线
+    background.paste(line_color, (x + 48 + 1, y))
+    draw.text((x + padding_left + 48 + 5, y + padding_top + 23), info,
+              fill=text_color,
+              font=font_small)
+
+
+def draw_additional_state_info(state_img, x, y, player_name_size, padding_top, background):
+    """
+    绘制额外信息的图标如忙碌状态、离开状态等
+    """
+    background.paste(state_img, (x + 48 + 5 + player_name_size + 10, y + padding_top + 5))
+    return y + 20
 
 
 async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
+    """
+    生成订阅列表的图片
+    """
     text_size_normal = 17
     text_size_small = 11
     spacing = 10
     border_size = 10
     green = (144, 186, 60)
+    dark_green = (98, 129, 59)
     blue = (87, 203, 222)
+    dark_blue = (69, 117, 139)
     gray = (137, 137, 137)
     font_path = os.path.join(os.path.dirname(__file__), 'MiSans-Regular.ttf')
     font = ImageFont.truetype(font_path, size=text_size_normal)
     font_small = ImageFont.truetype(font_path, size=text_size_small)
     green_line = Image.new("RGB", (3, 48), green)
+    dark_green_line = Image.new("RGB", (3, 48), dark_green)
     blue_line = Image.new("RGB", (3, 48), blue)
     gray_line = Image.new("RGB", (3, 48), gray)
+    dark_blue_line = Image.new("RGB", (3, 48), dark_blue)
     status_num = len(group_playing_state)
     x = 0
     y = 0
@@ -148,62 +212,68 @@ async def generate_subscribe_list_image(group_playing_state: dict) -> Image:
     draw = ImageDraw.Draw(background)
 
     def _sorting_key(player_status):
-        _game_name = status["gameextrainfo"]
+        _game_name = player_status["gameextrainfo"]
         _is_playing = bool(_game_name)
-        _is_online = player_status.get("personastate") != 0
-
+        _is_online = player_status.get("personastate").value
+        _last_logoff = player_status.get("lastlogoff")
         if _is_playing:
-            return 0, _game_name  # 在游戏中，按照游戏名称排序
+            return 0, _game_name, _is_online  # 在游戏中优先级最高，其次按照游戏名称排序, 之后按照在线状态排序
         elif _is_online:
-            return 1, ""  # 在线但不在游戏中
+            return 1, "", _is_online  # 在线但不在游戏中, 按照在线状态排序
+        elif _last_logoff is not None:
+            # 不在线，按照 last_logoff 倒序排序
+            return 2, -_last_logoff
         else:
-            return 2, ""  # 不在线
+            return 3, 0  # 不在线，且没有 last_logoff 信息
 
     # 按照在线状态排序
     for steam_id, status in sorted(group_playing_state.items(), key=lambda state: _sorting_key(state[1])):
-        player_name = status["personaname"]
-        game_info = status["localized_game_name"] if status["localized_game_name"] != "" else status["gameextrainfo"]
+        player_name: str = status["personaname"]
+        game_info: str = status["localized_game_name"] \
+            if status["localized_game_name"] != "" \
+            else status["gameextrainfo"]
         avatar_url = status["avatarmedium"]
 
-        is_online = status["personastate"] != 0
-        is_playing = game_info != ""
+        player_state: SteamStatus = status["personastate"]
+        is_playing: bool = game_info != ""
+
+        player_name_size = int(font.getlength(player_name))
 
         avatar = await fetch_avatar(avatar_url)
         avatar = avatar.resize((48, 48))
         background.paste(avatar, (x, y))
         padding_top = 8  # 用于调整右侧文字区域的padding top
         padding_left = 5  # 用于调整右侧文字区域的padding left
-        if is_playing:
-            # 用户名
-            draw.text((x + padding_left + 48 + 5, y + padding_top), player_name, fill=green,
-                      font=font)
-            background.paste(green_line, (x + 48 + 1, y))
-            draw.text((x + padding_left + 48 + 5, y + padding_top + 23), game_info,
-                      fill=green,
-                      font=font_small)
-        elif is_online:
-            # 用户名
-            draw.text((x + padding_left + 48 + 5, y + padding_top), player_name, fill=blue,
-                      font=font)
-            # 在线状态的线条
-            background.paste(blue_line, (x + 48 + 1, y))
-            draw.text((x + padding_left + 48 + 5, y + padding_top + 23), "在线",
-                      fill=blue,
-                      font=font_small)
+        if player_state == SteamStatus.BUSY:
+            # todo 忙碌状态, 但是目前还没找到设置这个状态的方法, 好像steam客户端的请勿打扰只是在客户端关闭消息提醒
+            draw_additional_state_info(busy_img, x, y, player_name_size, padding_top, background)
+        if is_playing and player_state in [SteamStatus.SNOOZE, SteamStatus.AWAY]:
+            draw_user_info(draw, x, y, player_name, game_info, font, font_small,
+                           dark_green, dark_green_line, padding_top,
+                           padding_left, background)
+            draw_additional_state_info(zzz_gaming_img, x, y, player_name_size, padding_top, background)
+        elif is_playing:
+            draw_user_info(draw, x, y, player_name, game_info, font, font_small,
+                           green, green_line, padding_top,
+                           padding_left, background)
+        elif player_state in [SteamStatus.SNOOZE, SteamStatus.AWAY]:
+            draw_user_info(draw, x, y, player_name, "离开", font, font_small,
+                           dark_blue, dark_blue_line, padding_top,
+                           padding_left, background)
+            draw_additional_state_info(zzz_online_img, x, y, player_name_size, padding_top, background)
+        elif player_state in [SteamStatus.ONLINE, SteamStatus.LOOKING_TO_PLAY, SteamStatus.LOOKING_TO_TRADE]:
+            draw_user_info(draw, x, y, player_name, "在线", font, font_small,
+                           blue, blue_line, padding_top,
+                           padding_left, background)
         else:  # offline
-            # 用户名
-            draw.text((x + padding_left + 48 + 5, y + padding_top), player_name, fill=gray,
-                      font=font)
-            # 在线状态的线条
-            background.paste(gray_line, (x + 48 + 1, y))
             # 显示离线时间
             if status["lastlogoff"]:  # 是apikey所属账号的好友，可以获取上次在线时间
                 last_logoff = f'上次在线{calculate_last_login_time(status["lastlogoff"])}前'
             else:  # 非好友
                 last_logoff = "离线"
-            draw.text((x + padding_left + 48 + 5, y + padding_top + 23), last_logoff,
-                      fill=gray,
-                      font=font_small)
+            draw_user_info(draw, x, y, player_name, last_logoff, font, font_small,
+                           gray, gray_line, padding_top,
+                           padding_left, background)
         y += 48 + spacing
     # 给最终结果创建一个环绕四周的边框, 颜色和背景色一致
     result_with_border = Image.new("RGB", (w + border_size * 2, h + border_size * 2), (33, 33, 33))
@@ -255,6 +325,69 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     except Exception as e:
         sv.logger.error(f"获取游戏名失败: {e}")
         return ""
+
+
+async def get_account_status(steam_id) -> dict:
+    steam_id = await format_id(steam_id)
+    params = {
+        "key": cfg["key"],
+        "format": "json",
+        "steamids": steam_id
+    }
+    resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
+                                 proxies=proxies)
+    rsp = await resp.json()
+    friend = rsp["response"]["players"][0]
+    return {
+        "personaname": friend["personaname"] if "personaname" in friend else "",
+        "gameextrainfo": friend["gameextrainfo"] if "gameextrainfo" in friend else "",
+        "localized_game_name": (
+            await get_localized_game_name(friend["gameid"], friend["gameextrainfo"])) if "gameid" in friend else ""
+    }
+
+
+async def update_game_status():
+    params = {
+        "key": cfg["key"],
+        "format": "json",
+        "steamids": ",".join(cfg["subscribes"].keys())
+    }
+    resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
+                                 proxies=proxies)
+    rsp = await resp.json()
+    for player in rsp["response"]["players"]:
+        playing_state[player["steamid"]] = {
+            "personaname": player["personaname"],
+            "personastate": SteamStatus(player["personastate"]),
+            "gameextrainfo": player["gameextrainfo"] if "gameextrainfo" in player else "",
+            "avatarmedium": player["avatarmedium"],
+            "gameid": player["gameid"] if "gameid" in player else "",
+            "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None,
+            # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
+            "localized_game_name": (
+                await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""
+            # 本体游戏名
+        }
+
+
+async def update_steam_ids(steam_id, group):
+    steam_id = await format_id(steam_id)
+    if steam_id not in cfg["subscribes"]:
+        cfg["subscribes"][str(steam_id)] = []
+    if group not in cfg["subscribes"][str(steam_id)]:
+        cfg["subscribes"][str(steam_id)].append(group)
+    with open(config_file, mode="w") as fil:
+        json.dump(cfg, fil, indent=4, ensure_ascii=False)
+    await update_game_status()
+
+
+async def del_steam_ids(steam_id, group):
+    steam_id = await format_id(steam_id)
+    if group in cfg["subscribes"][str(steam_id)]:
+        cfg["subscribes"][str(steam_id)].remove(group)
+    with open(config_file, mode="w") as fil:
+        json.dump(cfg, fil, indent=4, ensure_ascii=False)
+    await update_game_status()
 
 
 @sv.on_prefix("添加steam订阅")
@@ -325,71 +458,6 @@ async def reload_config(bot, ev):
         f = f.read()
         cfg = json.loads(f)
     await bot.send(ev, "重载成功！")
-
-
-async def get_account_status(steam_id) -> dict:
-    steam_id = await format_id(steam_id)
-    params = {
-        "key": cfg["key"],
-        "format": "json",
-        "steamids": steam_id
-    }
-    resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
-                                 proxies=proxies)
-    rsp = await resp.json()
-    friend = rsp["response"]["players"][0]
-    return {
-        "personaname": friend["personaname"] if "personaname" in friend else "",
-        "gameextrainfo": friend["gameextrainfo"] if "gameextrainfo" in friend else "",
-        "localized_game_name": (
-            await get_localized_game_name(friend["gameid"], friend["gameextrainfo"])) if "gameid" in friend else ""
-    }
-
-
-async def update_game_status():
-    params = {
-        "key": cfg["key"],
-        "format": "json",
-        "steamids": ",".join(cfg["subscribes"].keys())
-    }
-    resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
-                                 proxies=proxies)
-    rsp = await resp.json()
-    for player in rsp["response"]["players"]:
-        playing_state[player["steamid"]] = {
-            "personaname": player["personaname"],
-            # steam personastate detail:  0 - Offline, 1 - Online, 2 - Busy, 3 - Away,
-            #  4 - Snooze, 5 - looking to trade, 6 - looking to play.
-            "personastate": player["personastate"],
-            "gameextrainfo": player["gameextrainfo"] if "gameextrainfo" in player else "",
-            "avatarmedium": player["avatarmedium"],
-            "gameid": player["gameid"] if "gameid" in player else "",
-            "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None,
-            # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
-            "localized_game_name": (
-                await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""
-            # 本体游戏名
-        }
-
-
-async def update_steam_ids(steam_id, group):
-    steam_id = await format_id(steam_id)
-    if steam_id not in cfg["subscribes"]:
-        cfg["subscribes"][str(steam_id)] = []
-    if group not in cfg["subscribes"][str(steam_id)]:
-        cfg["subscribes"][str(steam_id)].append(group)
-    with open(config_file, mode="w") as fil:
-        json.dump(cfg, fil, indent=4, ensure_ascii=False)
-    await update_game_status()
-
-
-async def del_steam_ids(steam_id, group):
-    steam_id = await format_id(steam_id)
-    if group in cfg["subscribes"][str(steam_id)]:
-        cfg["subscribes"][str(steam_id)].remove(group)
-    with open(config_file, mode="w") as fil:
-        json.dump(cfg, fil, indent=4, ensure_ascii=False)
-    await update_game_status()
 
 
 @sv.scheduled_job('cron', minute='*/2')  # 时间为偶数分钟时运行, 每两分钟运行一次
