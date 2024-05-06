@@ -4,11 +4,22 @@ Forked from [pcrbot/steam](https://github.com/SlightDust/steam.git)
 
 ### 安装方法
 
+#### 第一次部署
+
 1. 在module目录下执行 `git clone https://github.com/SlightDust/steam_HoshinoBot.git`
 
 2. 在`__bot__.py`的`module`中添加`steam_HoshinoBot`
 
 3. 初次启动前，复制`steam.json.example`为`steam.json`，填入api key。或在初次启动后，在生成的steam.json中填入api key，然后在群聊内发送`@bot 重载steam订阅配置`。  
+
+#### 从旧版移植
+
+1. 将旧版`steam.py`重命名为`steam.py.temp`, 将本仓库的`steam.py`放到该目录下
+
+> [!TIP]
+> 如果你持有的json文件是和[旧版](https://github.com/SlightDust/steam)以及[pcrbot/steam](https://github.com/SlightDust/steam)自动生成的json格式相同, 则新版代码可以自动兼容旧版json
+
+2. 将`res`文件夹与`MiSans-Regular.ttf`字体文件放到与`steam.py`同目录下
 
 ### 使用方法
 
