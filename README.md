@@ -25,8 +25,7 @@ Forked from [pcrbot/steam](https://github.com/SlightDust/steam.git)
 steam客户端 - 帮助 - Steam客服 - 我的账户 - 您Steam账户的相关数据 - 开发者设置
 
 ### 配置文件结构
-```json
-
+```json5
 {
   // 你的steam api key, 注意不要将此密钥上传到公共仓库, 以免造成经济损失!!!!
   "key": "填写你的Steam API Key",
