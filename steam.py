@@ -14,6 +14,7 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from nonebot import MessageSegment
 from collections import defaultdict
+from requests.exceptions import JSONDecodeError
 from hoshino import service, aiorequests, get_self_ids, get_bot
 from hoshino.util import pic2b64
 
@@ -340,7 +341,13 @@ async def get_account_status(steam_id) -> dict:
     }
     resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
                                  proxies=proxies)
-    rsp = await resp.json()
+    try:
+        rsp = await resp.json()
+    except JSONDecodeError:
+        if "429" in (await resp.text):
+            raise TooManyRequestException("429 请求过于频繁")
+        else:
+            raise UnknownException("解析json失败"+" "+await resp.text)
     friend = rsp["response"]["players"][0]
     return {
         "personaname": friend["personaname"] if "personaname" in friend else "",
@@ -356,9 +363,15 @@ async def update_game_status():
         "format": "json",
         "steamids": ",".join(cfg["subscribes"].keys())
     }
-    resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
-                                 proxies=proxies)
-    rsp = await resp.json()
+    try:
+        resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
+                                    proxies=proxies)
+        rsp = await resp.json()
+    except JSONDecodeError:
+        if "429" in (await resp.text):
+            raise TooManyRequestException("429 请求过于频繁")
+        else:
+            raise UnknownException("解析json失败"+" "+await resp.text)
     for player in rsp["response"]["players"]:
         playing_state[player["steamid"]] = {
             "personaname": player["personaname"],
@@ -399,7 +412,18 @@ async def add_steam_sub(bot, ev):
     account = str(ev.message).strip()
     try:
         await update_steam_ids(account, ev["group_id"])
-        rsp = await get_account_status(account)
+        try:
+            rsp = await get_account_status(account)
+        except TooManyRequestException:
+            await bot.send(ev, "请求过于频繁，请稍后再试！")
+            return
+        except UnknownException:
+            await bot.send(ev, "未知错误，请稍后再试！")
+            return
+        except Exception as e:
+            await bot.send(ev, "未知错误，请联系管理员排查日志！")
+            sv.logger.error(f"添加Steam订阅失败: {e}")
+            return
         if rsp["personaname"] == "":
             await bot.send(ev, "添加订阅失败！")
         elif rsp["gameextrainfo"] == "":
@@ -429,7 +453,19 @@ async def remove_steam_sub(bot, ev):
 async def steam_sub_list(bot, ev):
     group_id = ev["group_id"]
     group_state_dict = {}
-    await update_game_status()
+    try:
+        await update_game_status()
+    except TooManyRequestException as e:
+        await bot.send(ev, "请求过于频繁，请稍后再试！")
+        return 
+    except UnknownException as e:
+        await bot.send(ev, "未知错误，请稍后再试！")
+        return
+    except Exception as e:
+        await bot.send(ev, "未知错误，请联系管理员排查日志！")
+        sv.logger.error(f"获取Steam订阅列表失败: {e}")
+        return
+            
     for key, val in playing_state.items():
         if group_id in cfg["subscribes"][str(key)]:
             group_state_dict[key] = val
@@ -444,7 +480,18 @@ async def steam_sub_list(bot, ev):
 @sv.on_prefix("查询steam账号")
 async def search_steam_account(bot, ev):
     account = str(ev.message).strip()
-    rsp = await get_account_status(account)
+    try:
+        rsp = await get_account_status(account)
+    except TooManyRequestException:
+        await bot.send(ev, "请求过于频繁，请稍后再试！")
+        return
+    except UnknownException:
+        await bot.send(ev, "未知错误，请稍后再试！")
+        return
+    except Exception as e:
+        await bot.send(ev, "未知错误，请联系管理员排查日志！")
+        sv.logger.error(f"查询Steam账号失败: {e}")
+        return
     if rsp["personaname"] == "":
         await bot.send(ev, "查询失败！")
     elif rsp["gameextrainfo"] == "":
@@ -554,3 +601,15 @@ async def broadcast(group_list: set, msg):
         for group in group_list:
             await sv.bot.send_group_msg(self_id=bot_ids[0], group_id=group, message=msg)
             await sleep(0.5)
+
+# ==================== exception =========================
+# 用于处理429的两个异常，但是在请求频繁时，删除steam订阅会误抛
+class TooManyRequestException(Exception):
+    # 请求过于频繁
+    def __init__(self, message):
+        super().__init__(message)
+
+class UnknownException(Exception):
+    # 未知错误
+    def __init__(self, message):
+        super().__init__(message)
