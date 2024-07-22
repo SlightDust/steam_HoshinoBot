@@ -328,8 +328,8 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
         else:
             return ""
     except Exception as e:
-        sv.logger.error(f"获取游戏名失败: {e}")
-        return ""
+        sv.logger.error(f"获取{steam_appid}的{cfg['language']}游戏名失败: {e}")
+        return game_name
 
 
 async def get_account_status(steam_id) -> dict:
