@@ -1,6 +1,6 @@
 # steam_HoshinoBot
 
-Forked from [pcrbot/steam](https://github.com/SlightDust/steam.git)  
+Forked from [pcrbot/steam](https://github.com/pcrbot/steam)  
 ~~原项目四年不更新了，fork一份来缝一下~~
 
 ### 安装方法
@@ -20,7 +20,7 @@ Forked from [pcrbot/steam](https://github.com/SlightDust/steam.git)
 
 > [!TIP]
 > 如果你持有的json文件是和[旧版](https://github.com/SlightDust/steam)
-> 以及[pcrbot/steam](https://github.com/SlightDust/steam)自动生成的json格式相同, 则新版代码可以自动兼容旧版json
+> 以及[pcrbot/steam](https://github.com/pcrbot/steam)自动生成的json格式相同, 则新版代码可以自动兼容旧版json
 
 2. 将`res`文件夹与`MiSans-Regular.ttf`字体文件放到与`steam.py`同目录下
 
