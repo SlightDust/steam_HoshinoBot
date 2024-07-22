@@ -1,5 +1,6 @@
 import json
 import os
+import traceback
 from enum import Enum
 
 from lxml import etree
@@ -328,8 +329,13 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
         else:
             return ""
     except Exception as e:
-        sv.logger.error(f"获取游戏名失败: {e}")
-        return ""
+        sv.logger.error(f"=================start debug=================")
+        sv.logger.error(f"==============获取游戏名失败: 以下是traceback==============")
+        sv.logger.error(f"{traceback.format_exc()}")
+        sv.logger.error(f"本次查询的url为: {url}")
+        sv.logger.error(f"对于{game_name}的{cfg['language']}翻译游戏名查询失败")
+        sv.logger.error(f"=================end debug=================")
+        return game_name
 
 
 async def get_account_status(steam_id) -> dict:
