@@ -395,7 +395,7 @@ async def update_steam_ids(steam_id, group):
         cfg["subscribes"][str(steam_id)].append(group)
     with open(config_file, mode="w") as fil:
         json.dump(cfg, fil, indent=4, ensure_ascii=False)
-    await update_game_status()
+    # await update_game_status()
 
 
 async def del_steam_ids(steam_id, group):
@@ -404,7 +404,7 @@ async def del_steam_ids(steam_id, group):
         cfg["subscribes"][str(steam_id)].remove(group)
     with open(config_file, mode="w") as fil:
         json.dump(cfg, fil, indent=4, ensure_ascii=False)
-    await update_game_status()
+    # await update_game_status()
 
 
 @sv.on_prefix("添加steam订阅")
@@ -595,11 +595,17 @@ async def broadcast(group_list: set, msg):
             for g in glist:
                 group_bot_map[g["group_id"]] = bot_id
         for group in group_list:
-            await sv.bot.send_group_msg(self_id=group_bot_map[group], group_id=group, message=msg)
+            try:
+                await sv.bot.send_group_msg(self_id=group_bot_map[group], group_id=group, message=msg)
+            except:
+                sv.logger.error(f"向群{group}推送steam订阅信息失败。")
             await sleep(0.5)
     else:
         for group in group_list:
-            await sv.bot.send_group_msg(self_id=bot_ids[0], group_id=group, message=msg)
+            try:
+                await sv.bot.send_group_msg(self_id=bot_ids[0], group_id=group, message=msg)
+            except:
+                sv.logger.error(f"向群{group}推送steam订阅信息失败。")
             await sleep(0.5)
 
 # ==================== exception =========================
