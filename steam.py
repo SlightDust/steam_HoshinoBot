@@ -361,8 +361,9 @@ async def update_game_status():
     params = {
         "key": cfg["key"],
         "format": "json",
-        "steamids": ",".join(cfg["subscribes"].keys())
+        "steamids": ",".join([steam_id for steam_id, subscribes_list in cfg["subscribes"].items() if subscribes_list])
     }
+    # sv.logger.info(f"共有{len(cfg['subscribes'])}个steamid，其中有{len(params['steamids'].split(','))}个被订阅，仅更新被订阅账号的数据。")
     try:
         resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params,
                                     proxies=proxies)
