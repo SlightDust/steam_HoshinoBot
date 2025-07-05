@@ -382,10 +382,58 @@ async def update_game_status():
             "gameid": player["gameid"] if "gameid" in player else "",
             "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None,
             # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
-            "localized_game_name": (
-                await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""
+            "localized_game_name": (await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""
             # 本体游戏名
         }
+
+async def update_game_status_new():
+    # 过滤出有订阅的 SteamID
+    subscribed_steam_ids = [steam_id for steam_id, subscribes_list in cfg["subscribes"].items() if subscribes_list]
+    total_steam_ids = len(cfg['subscribes'])
+    subscribed_count = len(subscribed_steam_ids)
+    sv.logger.info(f"共有{total_steam_ids}个steamid，其中有{subscribed_count}个被订阅，仅更新被订阅账号的数据。")
+    # 定义每次请求的批次大小
+    BATCH_SIZE = 100
+    # 定义请求之间的延迟时间（秒）
+    REQUEST_DELAY_SECONDS = 5  # 建议根据Steam API的速率限制调整此值
+    # 将 SteamID 分批处理
+    for i in range(0, subscribed_count, BATCH_SIZE):
+        batch_steam_ids = subscribed_steam_ids[i:i + BATCH_SIZE]
+        params = {
+            "key": cfg["key"],
+            "format": "json",
+            "steamids": ",".join(batch_steam_ids)
+        }
+        sv.logger.info(f"正在请求第 {i//BATCH_SIZE + 1} 批，包含 {len(batch_steam_ids)} 个 SteamID...")
+        try:
+            resp = await aiorequests.get("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/", params=params, proxies=proxies)
+            rsp = await resp.json()
+        except JSONDecodeError:
+            response_text = await resp.text
+            if "429" in response_text:
+                raise TooManyRequestException("429 请求过于频繁")
+            else:
+                raise UnknownException(f"解析json失败: {response_text}")
+        except Exception as e:
+            # 捕获其他可能的网络或请求错误
+            continue # 继续处理下一批次
+        # 更新 playing_state
+        for player in rsp["response"]["players"]:
+            playing_state[player.get("steamid")] = {
+                "personaname": player["personaname"],
+                "personastate": SteamStatus(player["personastate"]),
+                "gameextrainfo": player["gameextrainfo"] if "gameextrainfo" in player else "",
+                "avatarmedium": player["avatarmedium"],
+                "gameid": player["gameid"] if "gameid" in player else "",
+                "lastlogoff": player["lastlogoff"] if "lastlogoff" in player else None,
+                # 非steam好友，没有lastlogoff字段，置为None供generate_subscribe_list_image判断
+                "localized_game_name": (await get_localized_game_name(player["gameid"], player["gameextrainfo"])) if "gameid" in player else ""
+                # 本体游戏名
+            }
+        # 如果不是最后一批，等待一段时间以避免 429 错误
+        if i + BATCH_SIZE < subscribed_count:
+            await sleep(REQUEST_DELAY_SECONDS)
+
 
 
 async def update_steam_ids(steam_id, group):
@@ -396,7 +444,6 @@ async def update_steam_ids(steam_id, group):
         cfg["subscribes"][str(steam_id)].append(group)
     with open(config_file, mode="w") as fil:
         json.dump(cfg, fil, indent=4, ensure_ascii=False)
-    # await update_game_status()
 
 
 async def del_steam_ids(steam_id, group):
@@ -405,7 +452,6 @@ async def del_steam_ids(steam_id, group):
         cfg["subscribes"][str(steam_id)].remove(group)
     with open(config_file, mode="w") as fil:
         json.dump(cfg, fil, indent=4, ensure_ascii=False)
-    # await update_game_status()
 
 
 @sv.on_prefix("添加steam订阅")
@@ -455,7 +501,7 @@ async def steam_sub_list(bot, ev):
     group_id = ev["group_id"]
     group_state_dict = {}
     try:
-        await update_game_status()
+        await update_game_status_new()
     except TooManyRequestException as e:
         await bot.send(ev, "请求过于频繁，请稍后再试！")
         return 
@@ -515,7 +561,7 @@ async def reload_config(bot, ev):
 @sv.scheduled_job('cron', minute=f'*/{request_interval}')
 async def check_steam_status():
     old_state = playing_state.copy()
-    await update_game_status()
+    await update_game_status_new()
     if combined_mode:
         await combined_broadcast(old_state)
     else:
