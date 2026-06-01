@@ -5,4 +5,5 @@
     },
     "combined_mode": true,
     "proxies": null
+    "request_interval": 8
 }
