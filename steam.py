@@ -44,6 +44,10 @@ if not os.path.exists(config_file):
         }, indent=4))
     sv.logger.error("Steam推送初始化成功, 请编辑steam.json配置文件！")
 
+if not os.path.exists(os.path.join(current_folder, 'localized_game_name.json')):
+    with open(os.path.join(current_folder, 'localized_game_name.json'), mode="w") as f:
+        f.write(json.dumps({"000000": {"language_name": "localized_game_name"}}, indent=4, ensure_ascii=False))
+
 # 加载配置文件
 with open(config_file, mode="r") as f:
     f = f.read()
@@ -296,10 +300,6 @@ async def get_localized_game_name(steam_appid: str, game_name: str) -> str:
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
     }
-    # 首次调用，检查本地缓存文件
-    if not os.path.exists(os.path.join(current_folder, 'localized_game_name.json')):
-        with open(os.path.join(current_folder, 'localized_game_name.json'), mode="w") as f:
-            f.write(json.dumps({"000000": {"language_name": "localized_game_name"}}, indent=4, ensure_ascii=False))
     # 先尝试从本地缓存中找指定语言的游戏名：
     with open(os.path.join(current_folder, 'localized_game_name.json'), mode="r") as f:
         localized_game_name_dict = json.loads(f.read())
